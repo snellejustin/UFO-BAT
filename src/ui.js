@@ -1,13 +1,8 @@
-/**
- * Creates and manages the play button UI and game state
- */
-export const createPlayButton = () => {
-    // Create a game state object
+export const createPlayButton = (countdown, levelManager) => {
     const gameState = {
         isPlaying: false,
     };
 
-    // Create container div for UI
     const uiContainer = document.createElement('div');
     uiContainer.id = 'ui-container';
     uiContainer.style.cssText = `
@@ -24,7 +19,6 @@ export const createPlayButton = () => {
     `;
     document.body.appendChild(uiContainer);
 
-    // Create play button
     const playButton = document.createElement('button');
     playButton.textContent = 'PLAY';
     playButton.id = 'play-button';
@@ -43,7 +37,7 @@ export const createPlayButton = () => {
         font-family: 'Arial', sans-serif;
     `;
 
-    // Hover effect
+
     playButton.addEventListener('mouseover', () => {
         playButton.style.backgroundColor = '#00ff00';
         playButton.style.transform = 'scale(1.1)';
@@ -56,10 +50,13 @@ export const createPlayButton = () => {
         playButton.style.boxShadow = '0 0 20px rgba(0, 255, 0, 0.7)';
     });
 
-    // Click handler to start game
     playButton.addEventListener('click', () => {
-        gameState.isPlaying = true;
-        uiContainer.style.display = 'none'; // Hide the UI
+        uiContainer.style.display = 'none';
+        
+        countdown.startCountdown(() => {
+            gameState.isPlaying = true;
+            levelManager.startFirstLevel();
+        });
     });
 
     uiContainer.appendChild(playButton);

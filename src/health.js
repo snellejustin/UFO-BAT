@@ -25,7 +25,6 @@ export function createHealthManager(scene, rocketship) {
   let healthLine = null;
 
   function updateHealthBar() {
-    // Remove old health line
     if (healthLine) {
       healthLine.dispose();
     }
@@ -107,7 +106,7 @@ export function createHealthManager(scene, rocketship) {
     popup.textContent = `- ${damageAmount}`;
     popup.style.position = 'fixed';
     popup.style.left = `${screenPos.x}px`;
-    popup.style.top = `${screenPos.y - 30}px`; // 30px above the health bar
+    popup.style.top = `${screenPos.y - 30}px`;
     popup.style.transform = 'translate(-50%, -100%)';
     popup.style.fontSize = '32px';
     popup.style.fontWeight = 'bold';
@@ -163,11 +162,28 @@ export function createHealthManager(scene, rocketship) {
     });
   }
 
+  function setupProjectileCollisionListener(projectileManager, camera) {
+    scene.registerBeforeRender(() => {
+      projectileManager.projectiles.forEach((proj) => {
+        if (!proj.active) return;
+
+        const distance = BABYLON.Vector3.Distance(rocketship.position, proj.mesh.position);
+        
+        if (distance < 0.6) {
+          takeDamage(30, camera);
+
+          projectileManager.removeProjectile(proj.mesh);
+        }
+      });
+    });
+  }
+
   updateHealthBar();
 
   return {
     takeDamage,
     setupCollisionListener,
+    setupProjectileCollisionListener,
     getHealth: () => health,
     setHealth: (value) => {
       health = Math.max(0, Math.min(value, maxHealth));

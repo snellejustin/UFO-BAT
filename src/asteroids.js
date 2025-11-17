@@ -1,27 +1,24 @@
 import * as BABYLON from '@babylonjs/core';
-import '@babylonjs/core/Physics/physicsEngineComponent'; // ensure v1 APIs
+import '@babylonjs/core/Physics/physicsEngineComponent';
 
-/**
- * Manages asteroid spawning, movement (via physics v1), and cleanup
- */
 class AsteroidManager {
     constructor(scene, options = {}) {
         this.scene = scene;
 
-        // ---- Tunables
+        // customizable parameters
         this.spawnRatePerSecond = options.spawnRatePerSecond ?? 1;
         this.spawnWidth = options.spawnWidth ?? 16;
         this.spawnHeight = options.spawnHeight ?? 10;
         this.deathZone = options.deathZone ?? -5;
 
-        this.speedMin = options.speedMin ?? 0.2;   // downward speed (u/s)
+        this.speedMin = options.speedMin ?? 0.2;
         this.speedMax = options.speedMax ?? 1;
-        this.driftXMin = options.driftXMin ?? -0.6; // lateral speed (u/s)
+        this.driftXMin = options.driftXMin ?? -0.6;
         this.driftXMax = options.driftXMax ?? 0.6;
 
         this.sizeMin = options.sizeMin ?? 0.5;
         this.sizeMax = options.sizeMax ?? 2.4;
-        this.spinMin = options.spinMin ?? -1.2;   // rad/s
+        this.spinMin = options.spinMin ?? -1.2;
         this.spinMax = options.spinMax ?? 1.2;
 
         // Physics properties
@@ -38,7 +35,6 @@ class AsteroidManager {
         this.material.diffuseColor = new BABYLON.Color3(0.65, 0.65, 0.65);
         this.material.specularColor = new BABYLON.Color3(0.15, 0.15, 0.15);
 
-        // Source mesh (we CLONE for physics; instances won't work with impostors)
         this.source = BABYLON.MeshBuilder.CreateIcoSphere('asteroid_src', {
             radius: 0.3,
             subdivisions: 2
@@ -46,10 +42,10 @@ class AsteroidManager {
         this.source.isVisible = false;
         this.source.material = this.material;
 
-        this.pool = [];   // { mesh }
-        this.active = []; // { mesh }
+        this.pool = [];
+        this.active = [];
         this.spawnAcc = 0;
-        this.isActive = false; // Game state flag
+        this.isActive = false;
     }
 
     _rand(min, max) { return min + Math.random() * (max - min); }
@@ -72,7 +68,7 @@ class AsteroidManager {
                 this.scene
             );
 
-            const body = mesh.physicsImpostor.physicsBody; // Cannon.Body
+            const body = mesh.physicsImpostor.physicsBody;
             body.linearDamping = this.linDamp;
             body.angularDamping = this.angDamp;
 
@@ -90,7 +86,7 @@ class AsteroidManager {
         );
         mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
 
-        // Reset velocities (important when reusing)
+        // Reset velocities
         const vx = this._rand(this.driftXMin, this.driftXMax);
         const vy = -this._rand(this.speedMin, this.speedMax);
         const wzx = this._rand(this.spinMin, this.spinMax);
@@ -104,9 +100,12 @@ class AsteroidManager {
     }
 
     update() {
-        const dt = this.scene.getEngine().getDeltaTime() / 1000;
+        let dt = this.scene.getEngine().getDeltaTime() / 1000;
+        
+        // Cap delta time to prevent spawn burst when returning from inactive tab
+        // Max 0.1 seconds (100ms) prevents accumulation during tab switch
+        dt = Math.min(dt, 0.1);
 
-        // Only spawn asteroids if the game is active
         if (this.isActive) {
             // spawn with accumulator (frame-rate independent)
             this.spawnAcc += this.spawnRatePerSecond * dt;
@@ -117,11 +116,9 @@ class AsteroidManager {
             }
         }
 
-        // cull below death zone
         for (let i = this.active.length - 1; i >= 0; i--) {
             const m = this.active[i];
             if (m.position.y < this.deathZone) {
-                // Disable and zero velocities, then pool
                 m.setEnabled(false);
                 if (m.physicsImpostor) {
                     m.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
@@ -157,9 +154,7 @@ class AsteroidManager {
     }
 }
 
-/**
- * Factory function (same API)
- */
+//Factory function (same API)
 export const createAsteroidManager = (scene, options) => {
     const manager = new AsteroidManager(scene, options);
     return {

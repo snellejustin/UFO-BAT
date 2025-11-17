@@ -3,7 +3,6 @@ import '@babylonjs/core/Physics/physicsEngineComponent';
 import * as CANNON from 'cannon-es';
 
 /**
- * Sets up arrow key input binding
  * @returns {Object} The inputMap object
  */
 export const setupArrowKeys = () => {
@@ -14,7 +13,6 @@ export const setupArrowKeys = () => {
 };
 
 /**
- * Creates the rocketship mesh with physics
  * @param {BABYLON.Scene} scene
  * @returns {BABYLON.Mesh}
  */
@@ -34,9 +32,9 @@ export const createRocketship = (scene) => {
         scene
     );
 
-    // Lock axes: move only along X; no physics-driven rotation
-    const body = spaceship.physicsImpostor.physicsBody; // Cannon.Body
-    body.linearDamping = 0.05; // mild natural slow-down
+    // Lock axes
+    const body = spaceship.physicsImpostor.physicsBody; 
+    body.linearDamping = 0.05;
     body.angularDamping = 0.05;
     body.linearFactor = new CANNON.Vec3(1, 0, 0); // X only
     body.angularFactor = new CANNON.Vec3(0, 0, 0); // we handle visual tilt
@@ -49,7 +47,6 @@ export const createRocketship = (scene) => {
 
 
 export const setupRocketshipPhysics = (scene, spaceship, inputMap) => {
-    // Control parameters (tweak to taste)
     let ctrlVX = 0;                 // target sideways speed from input (units/sec)
     const maxSpeedCtrl = 14.0;       // how fast the ship can go sideways
     const accelCtrl = 0.08;      // how quickly target speed ramps up (per frame)
@@ -61,7 +58,7 @@ export const setupRocketshipPhysics = (scene, spaceship, inputMap) => {
     const canvas = scene.getEngine().getRenderingCanvas();
     
     // Use screen width to determine world space bounds
-    // Approximate: 1 unit in world space per 50 pixels (adjust as needed)
+    // Approximate: 1 unit in world space per 50 pixels
     const screenWidth = canvas.clientWidth;
     const unitsPerPixel = 0.016; // 1 unit = 50 pixels
     const xMax = (screenWidth / 2) * unitsPerPixel;
@@ -82,7 +79,7 @@ export const setupRocketshipPhysics = (scene, spaceship, inputMap) => {
         const right = inputMap["ArrowRight"] ? 1 : 0;
         const input = right - left;
 
-        // --- Build target control speed (smooth accel/decel) ---
+        //Build target control speed (smooth accel/decel)
         if (input !== 0) {
             ctrlVX += input * accelCtrl * maxSpeedCtrl;
         } else {
@@ -90,13 +87,13 @@ export const setupRocketshipPhysics = (scene, spaceship, inputMap) => {
         }
         ctrlVX = BABYLON.Scalar.Clamp(ctrlVX, -maxSpeedCtrl, maxSpeedCtrl);
 
-        // --- Blend actual physics velocity toward the control target ---
+        // Blend actual physics velocity toward the control target
         // When steering: snappier blend; when idle: gentle blend so asteroid hits are still felt.
         const blend = input !== 0 ? steerBlendActive : steerBlendIdle;
         const newVX = BABYLON.Scalar.Lerp(vel.x, ctrlVX, blend);
         imp.setLinearVelocity(new BABYLON.Vector3(newVX, vel.y, 0));
 
-        // --- Soft bounds on X (optional) ---
+        // Soft bounds on X
         if (pos.x < xMin) {
             spaceship.position.x = xMin;
             if (newVX < 0) imp.setLinearVelocity(new BABYLON.Vector3(0, vel.y, 0));
@@ -105,14 +102,14 @@ export const setupRocketshipPhysics = (scene, spaceship, inputMap) => {
             if (newVX > 0) imp.setLinearVelocity(new BABYLON.Vector3(0, vel.y, 0));
         }
 
-        // --- Pin Y (no falling) ---
+        // Pin Y
         const baseY = spaceship.metadata?.baseY ?? 1.3;
         const body = imp.physicsBody; // Cannon.Body
         body.velocity.y = 0;
         body.position.y = baseY;
         spaceship.position.y = baseY;
 
-        // --- Slight tilt based on real velocity (same vibe as before) ---
+        //Slight tilt based on real velocity
         const tiltTarget = -(newVX / maxSpeedCtrl) * (maxTilt * 3);
         spaceship.rotation.z = BABYLON.Scalar.Lerp(spaceship.rotation.z, tiltTarget, tiltSmoothness);
     });

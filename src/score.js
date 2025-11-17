@@ -1,6 +1,3 @@
-/**
- * Manages score tracking and UI display
- */
 export class ScoreManager {
     constructor() {
         this.score = 0;
@@ -8,11 +5,8 @@ export class ScoreManager {
         this.initUI();
     }
 
-    /**
-     * Initialize the score display UI
-     */
+    
     initUI() {
-        // Create score container
         const scoreContainer = document.createElement('div');
         scoreContainer.id = 'score-container';
         scoreContainer.style.cssText = `
@@ -24,7 +18,6 @@ export class ScoreManager {
             pointer-events: none;
         `;
 
-        // Create score display
         this.scoreElement = document.createElement('div');
         this.scoreElement.id = 'score-display';
         this.scoreElement.textContent = `SCORE: 0`;
@@ -41,7 +34,6 @@ export class ScoreManager {
     }
 
     /**
-     * Add points to the score
      * @param {number} points - Points to add
      */
     addScore(points) {
@@ -50,7 +42,6 @@ export class ScoreManager {
     }
 
     /**
-     * Set the score to a specific value
      * @param {number} value - The new score value
      */
     setScore(value) {
@@ -59,25 +50,18 @@ export class ScoreManager {
     }
 
     /**
-     * Get the current score
      * @returns {number} Current score
      */
     getScore() {
         return this.score;
     }
 
-    /**
-     * Update the score display
-     */
     updateDisplay() {
         if (this.scoreElement) {
             this.scoreElement.textContent = `SCORE: ${this.score}`;
         }
     }
 
-    /**
-     * Reset the score
-     */
     reset() {
         this.score = 0;
         this.updateDisplay();

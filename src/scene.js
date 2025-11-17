@@ -27,7 +27,6 @@ const createSkybox = (scene) => {
 
 
 /**
- * Creates and configures the Babylon.js scene with camera, lighting, and physics v1
  * @param {BABYLON.Engine} engine
  * @returns {BABYLON.Scene}
  */
@@ -42,37 +41,24 @@ export const createScene = (engine) => {
     camera.inputs.clear();
     camera.fov = 1;
 
-    // ✅ Enable Physics v1 (Cannon-ES)
+    //  Enable Physics v1 (Cannon-ES)
     const gravity = new BABYLON.Vector3(0, -1, 0);
     scene.enablePhysics(gravity, new CannonJSPlugin(true, 20, CANNON));
     scene.getPhysicsEngine().setTimeStep(1 / 120);
 
-    // 🌌 Add the space skybox
+   
     const skybox = createSkybox(scene);
 
-    // 🌠 Parallax-ish drift: slowly rotate skybox so it feels like flying through space
+    // Parallax-ish drift
     scene.onBeforeRenderObservable.add(() => {
-        const dt = scene.getEngine().getDeltaTime() / 1000; // seconds
-        const rotationSpeed = 0.02; // radians per second, tweak for faster/slower drift
+        const dt = scene.getEngine().getDeltaTime() / 1000; 
+        const rotationSpeed = 0.02; 
 
-        // rotate very slightly around Y (and/or Z) to create motion illusion
         skybox.rotation.x += rotationSpeed * dt;
-        // If you want a bit more “weird space” feel, you can also do:
-        // skybox.rotation.z += rotationSpeed * 0.3 * dt;
+
     });
 
     return scene;
-};
-
-/**
- * Creates and returns the UFO mesh
- * @param {BABYLON.Scene} scene
- */
-export const createMeshes = (scene) => {
-    const ufo = BABYLON.MeshBuilder.CreateSphere('ufo', { diameterY: 0.2, size: 0.3 }, scene);
-    ufo.position.y = 2.9;
-
-    return ufo;
 };
 
 /**
