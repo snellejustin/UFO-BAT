@@ -8,11 +8,11 @@ class AsteroidManager {
         // customizable parameters
         this.spawnRatePerSecond = options.spawnRatePerSecond ?? 1;
         this.spawnWidth = options.spawnWidth ?? 16;
-        this.spawnHeight = options.spawnHeight ?? 10;
+        this.spawnHeight = options.spawnHeight ?? 25;
         this.deathZone = options.deathZone ?? -5;
 
-        this.speedMin = options.speedMin ?? 0.2;
-        this.speedMax = options.speedMax ?? 1;
+        this.speedMin = options.speedMin ?? null ;
+        this.speedMax = options.speedMax ?? null ;
         this.driftXMin = options.driftXMin ?? -0.6;
         this.driftXMax = options.driftXMax ?? 0.6;
 

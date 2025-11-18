@@ -32,17 +32,13 @@ const createSkybox = (scene) => {
  */
 export const createScene = (engine) => {
     const scene = new BABYLON.Scene(engine);
-
     scene.createDefaultLight();
 
-    // Static camera
-    const camera = new BABYLON.UniversalCamera('camera', new BABYLON.Vector3(0, 3, -10), scene);
-    camera.attachControl(true);
-    camera.inputs.clear();
+    const camera = new BABYLON.UniversalCamera('camera', new BABYLON.Vector3(0, 0, -6), scene);
+    camera.setTarget(new BABYLON.Vector3(0, 4, 0));
     camera.fov = 1;
 
-    //  Enable Physics v1 (Cannon-ES)
-    const gravity = new BABYLON.Vector3(0, -1, 0);
+    const gravity = new BABYLON.Vector3(0, 0, 0);
     scene.enablePhysics(gravity, new CannonJSPlugin(true, 20, CANNON));
     scene.getPhysicsEngine().setTimeStep(1 / 120);
 

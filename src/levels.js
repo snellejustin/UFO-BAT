@@ -7,13 +7,13 @@ export const createLevelManager = (asteroidSystem, ufo) => {
         {
             level: 1,
             duration: 10000,
-            asteroidSpeed: { min: 0.2, max: 1 },
+            asteroidSpeed: { min: 3, max: 6 },
             spawnRate: 1
         },
         {
             level: 2,
             duration: 15000,
-            asteroidSpeed: { min: 0.3, max: 1.5 },
+            asteroidSpeed: { min: 5, max: 10 },
             spawnRate: 1.5
         },
     ];

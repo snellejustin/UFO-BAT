@@ -21,7 +21,8 @@ const levelManager = createLevelManager(asteroidSystem, ufo);
 const countdown = createCountdown();
 const gameState = createPlayButton(countdown, levelManager);
 const scoreManager = createScoreManager();
-const spaceship = createRocketship(scene);
+
+const spaceship = await createRocketship(scene);
 const healthManager = createHealthManager(scene, spaceship);
 
 disableCameraArrowKeys(scene);
@@ -39,4 +40,3 @@ startRenderLoop(engine, scene, () => {
     scoreManager.addScore(1);
   }
 });
-

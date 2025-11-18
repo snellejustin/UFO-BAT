@@ -1,10 +1,8 @@
 import * as BABYLON from '@babylonjs/core';
 import '@babylonjs/core/Physics/physicsEngineComponent';
+import '@babylonjs/loaders/glTF';
 import * as CANNON from 'cannon-es';
 
-/**
- * @returns {Object} The inputMap object
- */
 export const setupArrowKeys = () => {
     const inputMap = {};
     window.addEventListener("keydown", (e) => { inputMap[e.key] = true; });
@@ -12,19 +10,22 @@ export const setupArrowKeys = () => {
     return inputMap;
 };
 
-/**
- * @param {BABYLON.Scene} scene
- * @returns {BABYLON.Mesh}
- */
-export const createRocketship = (scene) => {
-    const spaceship = BABYLON.MeshBuilder.CreateSphere("spaceship", {
-        diameterX: 0.4,
-        diameterZ: 0.4,
-        size: 1,
-    }, scene);
+export const createRocketship = async (scene) => {
+    const result = await BABYLON.SceneLoader.ImportMeshAsync(
+        "",
+        "assets/blender-models/",
+        "rocketready.glb",
+        scene
+    );
+
+    const spaceship = result.meshes[0];
+    spaceship.name = "spaceship";
     spaceship.position.y = 1.3;
 
-    // Dynamic body so asteroids can push it
+    const boundingInfo = spaceship.getHierarchyBoundingVectors();
+    const size = boundingInfo.max.subtract(boundingInfo.min);
+    const radius = Math.max(size.x, size.y, size.z) / 2;
+
     spaceship.physicsImpostor = new BABYLON.PhysicsImpostor(
         spaceship,
         BABYLON.PhysicsImpostor.SphereImpostor,
@@ -32,14 +33,12 @@ export const createRocketship = (scene) => {
         scene
     );
 
-    // Lock axes
-    const body = spaceship.physicsImpostor.physicsBody; 
+    const body = spaceship.physicsImpostor.physicsBody;
     body.linearDamping = 0.05;
     body.angularDamping = 0.05;
-    body.linearFactor = new CANNON.Vec3(1, 0, 0); // X only
-    body.angularFactor = new CANNON.Vec3(0, 0, 0); // we handle visual tilt
+    body.linearFactor = new CANNON.Vec3(1, 0, 0);
+    body.angularFactor = new CANNON.Vec3(0, 0, 0);
 
-    // Pin Y reference
     spaceship.metadata = { baseY: spaceship.position.y };
 
     return spaceship;
