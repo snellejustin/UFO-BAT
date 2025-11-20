@@ -1,13 +1,12 @@
 import * as BABYLON from '@babylonjs/core';
 
-export function createHealthManager(scene, rocketship) {
+export function createHealthManager(scene, rocketship, shieldManager) {
   let health = 100;
   const maxHealth = 100;
   let lastDamageTime = {};
   const damageCooldown = 500;
 
   const barWidth = 1.5;
-  const barHeight = 0.1;
   const yPosition = 1.2;
 
   const bgPoints = [
@@ -96,17 +95,18 @@ export function createHealthManager(scene, rocketship) {
 
     const popup = document.createElement('div');
     popup.textContent = `- ${damageAmount}`;
-    popup.style.position = 'fixed';
-    popup.style.left = `${screenPos.x}px`;
-    popup.style.top = `${screenPos.y - 30}px`;
-    popup.style.transform = 'translate(-50%, -100%)';
-    popup.style.fontSize = '32px';
-    popup.style.fontWeight = 'bold';
-    popup.style.color = '#FF0000';
-    popup.style.textShadow = '0 0 10px #FF0000, 0 0 20px #FF0000';
-    popup.style.pointerEvents = 'none';
-    popup.style.zIndex = '1000';
-    popup.className = 'damageFloat';
+    popup.style.cssText = `
+      position: fixed;
+      left: ${screenPos.x}px;
+      top: ${screenPos.y - 30}px;
+      transform: translate(-50%, -100%);
+      font-size: 32px;
+      font-weight: bold;
+      color: #FF0000;
+      text-shadow: 0 0 10px #FF0000, 0 0 20px #FF0000;
+      pointer-events: none;
+      z-index: 1000;
+    `;
     document.body.appendChild(popup);
 
     let yOffset = 0;
@@ -130,6 +130,9 @@ export function createHealthManager(scene, rocketship) {
   }
 
   function takeDamage(damage, camera) {
+    if (shieldManager && shieldManager.isShieldActive()) {
+      return;
+    }
     health = Math.max(0, health - damage);
     playDamageEffect(camera, damage);
   }

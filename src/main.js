@@ -9,6 +9,8 @@ import { createCountdown } from './countdown.js';
 import { createLevelManager } from './levels.js';
 import { createUFO } from './ufo.js';
 import { createProjectileManager } from './projectiles.js';
+import { createHealthBoost } from './powerups/health-boost.js';
+import { createShield } from './powerups/shield.js';
 
 const canvas = document.getElementById('renderCanvas');
 const engine = createEngine(canvas);
@@ -17,13 +19,16 @@ const scene = createScene(engine);
 const asteroidSystem = createAsteroidManager(scene);
 const projectileManager = createProjectileManager(scene);
 const ufo = createUFO(scene, projectileManager);
-const levelManager = createLevelManager(asteroidSystem, ufo);
+
+const spaceship = await createRocketship(scene);
+const shield = createShield(scene, spaceship, scene.activeCamera);
+const healthManager = createHealthManager(scene, spaceship, shield);
+const healthBoost = createHealthBoost(scene, spaceship, healthManager, scene.activeCamera);
+
+const levelManager = createLevelManager(asteroidSystem, ufo, healthBoost, shield);
 const countdown = createCountdown();
 const gameState = createPlayButton(countdown, levelManager);
 const scoreManager = createScoreManager();
-
-const spaceship = await createRocketship(scene);
-const healthManager = createHealthManager(scene, spaceship);
 
 disableCameraArrowKeys(scene);
 const inputMap = setupArrowKeys();

@@ -1,4 +1,4 @@
-export const createLevelManager = (asteroidSystem, ufo) => {
+export const createLevelManager = (asteroidSystem, ufo, healthBoost, shield) => {
     let currentLevel = 0;
     let isWaveActive = false;
     let waveTimer = null;
@@ -68,6 +68,20 @@ export const createLevelManager = (asteroidSystem, ufo) => {
             asteroidSystem.manager.spawnRatePerSecond = levelConfig.spawnRate;
             asteroidSystem.manager.speedMin = levelConfig.asteroidSpeed.min;
             asteroidSystem.manager.speedMax = levelConfig.asteroidSpeed.max;
+
+            if (healthBoost) {
+                const randomDelay = Math.random() * (levelConfig.duration - 3000);
+                setTimeout(() => {
+                    healthBoost.spawnPowerup();
+                }, randomDelay);
+            }
+
+            if (shield) {
+                const randomDelay = Math.random() * (levelConfig.duration - 3000);
+                setTimeout(() => {
+                    shield.spawnPowerup();
+                }, randomDelay);
+            }
 
             waveTimer = setTimeout(() => {
                 endWave(levelOverlay);
