@@ -2,22 +2,16 @@ import * as BABYLON from '@babylonjs/core';
 
 export const createProjectileManager = (scene) => {
     const projectiles = [];
-    const projectileSpeed = 0.15;
 
-    /**
-     * @param {BABYLON.Vector3} position - Starting position for the projectile
-     */
     const shootProjectile = (position) => {
-        
         const projectile = BABYLON.MeshBuilder.CreateSphere('projectile', { diameter: 0.2 }, scene);
-        projectile.position = position.clone();
+        projectile.position.copyFrom(position);
 
         const material = new BABYLON.StandardMaterial('projectileMat', scene);
-        material.emissiveColor = new BABYLON.Color3(0, 0, 1); // Blue glow
+        material.emissiveColor = new BABYLON.Color3(0, 0, 1);
         material.diffuseColor = new BABYLON.Color3(0, 0, 1);
         projectile.material = material;
 
-        // Add physics impostor
         projectile.physicsImpostor = new BABYLON.PhysicsImpostor(
             projectile,
             BABYLON.PhysicsImpostor.SphereImpostor,
@@ -25,15 +19,12 @@ export const createProjectileManager = (scene) => {
             scene
         );
 
-        // downward velocity
         projectile.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, -5, 0));
 
         projectiles.push({
             mesh: projectile,
             active: true
         });
-
-        console.log('Projectile shot from:', position);
     };
 
     const update = () => {
@@ -42,7 +33,6 @@ export const createProjectileManager = (scene) => {
             
             if (!proj.active) continue;
 
-            // Remove if below screen
             if (proj.mesh.position.y < -2) {
                 if (proj.mesh.physicsImpostor) {
                     proj.mesh.physicsImpostor.dispose();

@@ -55,7 +55,6 @@ export const createLevelManager = (asteroidSystem, ufo) => {
 
     const startWave = (levelIndex) => {
         if (levelIndex >= levels.length) {
-            console.log('All levels completed!');
             return false;
         }
 
@@ -66,12 +65,10 @@ export const createLevelManager = (asteroidSystem, ufo) => {
         const levelOverlay = showLevelAnnouncement(levelConfig.level, () => {
             asteroidSystem.manager.isActive = true;
             
-            // Configure asteroid settings
             asteroidSystem.manager.spawnRatePerSecond = levelConfig.spawnRate;
             asteroidSystem.manager.speedMin = levelConfig.asteroidSpeed.min;
             asteroidSystem.manager.speedMax = levelConfig.asteroidSpeed.max;
 
-            // timer to end the wave
             waveTimer = setTimeout(() => {
                 endWave(levelOverlay);
             }, levelConfig.duration);
@@ -90,24 +87,12 @@ export const createLevelManager = (asteroidSystem, ufo) => {
                 levelOverlay.remove();
             }, 500);
         }
-
-        console.log(`Level ${levels[currentLevel].level} complete!`);
         
-        // Wait before starting UFO sequence
         setTimeout(() => {
-            console.log('UFO incoming...');
             ufo.flyUFO(() => {
-                console.log('UFO departed');
-                
-                // Wait after UFO finishes before next level
                 setTimeout(() => {
-                    // Check if there's a next level
                     if (currentLevel + 1 < levels.length) {
-                        console.log('Starting next level...');
                         startWave(currentLevel + 1);
-                    } else {
-                        console.log('All levels completed!');
-                        // victory screen coming here
                     }
                 }, 3000);
             });

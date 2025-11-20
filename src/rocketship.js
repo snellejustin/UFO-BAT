@@ -42,7 +42,7 @@ export const createRocketship = async (scene) => {
     if (mergedCollision) {
         mergedCollision.name = "spaceshipHitbox";
         mergedCollision.isVisible = false;
-        mergedCollision.position = spaceship.position.clone();
+        mergedCollision.position.copyFrom(spaceship.position);
         
         mergedCollision.physicsImpostor = new BABYLON.PhysicsImpostor(
             mergedCollision,
@@ -65,6 +65,36 @@ export const createRocketship = async (scene) => {
             collisionMesh: mergedCollision
         };
     }
+
+    const particleSystem = new BABYLON.ParticleSystem("thruster", 400, scene);
+    
+    particleSystem.particleTexture = new BABYLON.Texture("https://assets.babylonjs.com/textures/flare.png", scene);
+    
+    particleSystem.emitter = spaceship;
+    particleSystem.minEmitBox = new BABYLON.Vector3(-0.2, 0, 0);
+    particleSystem.maxEmitBox = new BABYLON.Vector3(0.2, 0, 0);
+ 
+    particleSystem.color1 = new BABYLON.Color4(1, 1, 1, 1);
+    particleSystem.color2 = new BABYLON.Color4(0.6, 0.3, 0, 1);
+    particleSystem.colorDead = new BABYLON.Color4(0.7, 0.7, 0, 0);
+    
+    particleSystem.minSize = 0.4;
+    particleSystem.maxSize = 0.8;
+    
+    particleSystem.minLifeTime = 0.2;
+    particleSystem.maxLifeTime = 0.4;
+
+    particleSystem.emitRate = 150;
+
+    particleSystem.direction1 = new BABYLON.Vector3(-0.5, -3, 0);
+    particleSystem.direction2 = new BABYLON.Vector3(0.5, -3, 0);
+ 
+    particleSystem.minEmitPower = 1;
+    particleSystem.maxEmitPower = 2;
+
+    particleSystem.start();
+    
+    spaceship.metadata.particleSystem = particleSystem;
 
     return spaceship;
 };

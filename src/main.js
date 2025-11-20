@@ -33,10 +33,10 @@ healthManager.setupCollisionListener(asteroidSystem.manager, scene.activeCamera)
 healthManager.setupProjectileCollisionListener(projectileManager, scene.activeCamera);
 
 startRenderLoop(engine, scene, () => {
-  asteroidSystem.update();
-  projectileManager.update();
-  
-  if (levelManager.isWaveActive()) {
-    scoreManager.addScore(1);
-  }
+    asteroidSystem.update();
+    projectileManager.update();
+    
+    if (levelManager.isWaveActive()) {
+        scoreManager.addScore(1);
+    }
 });

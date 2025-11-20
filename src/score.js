@@ -5,7 +5,6 @@ export class ScoreManager {
         this.initUI();
     }
 
-    
     initUI() {
         const scoreContainer = document.createElement('div');
         scoreContainer.id = 'score-container';
@@ -20,7 +19,7 @@ export class ScoreManager {
 
         this.scoreElement = document.createElement('div');
         this.scoreElement.id = 'score-display';
-        this.scoreElement.textContent = `SCORE: 0`;
+        this.scoreElement.textContent = 'SCORE: 0';
         this.scoreElement.style.cssText = `
             font-size: 32px;
             font-weight: bold;
@@ -33,25 +32,16 @@ export class ScoreManager {
         document.body.appendChild(scoreContainer);
     }
 
-    /**
-     * @param {number} points - Points to add
-     */
     addScore(points) {
         this.score += points;
         this.updateDisplay();
     }
 
-    /**
-     * @param {number} value - The new score value
-     */
     setScore(value) {
         this.score = Math.max(0, value);
         this.updateDisplay();
     }
 
-    /**
-     * @returns {number} Current score
-     */
     getScore() {
         return this.score;
     }
@@ -68,10 +58,6 @@ export class ScoreManager {
     }
 }
 
-/**
- * Factory function to create score manager
- * @returns {ScoreManager} The score manager instance
- */
 export const createScoreManager = () => {
     return new ScoreManager();
 };

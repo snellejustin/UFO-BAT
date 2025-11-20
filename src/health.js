@@ -6,12 +6,10 @@ export function createHealthManager(scene, rocketship) {
   let lastDamageTime = {};
   const damageCooldown = 500;
 
-  // Create health bar as a simple line above rocketship
   const barWidth = 1.5;
   const barHeight = 0.1;
   const yPosition = 1.2;
 
-  // Background line (gray)
   const bgPoints = [
     new BABYLON.Vector3(-barWidth / 2, yPosition, 0),
     new BABYLON.Vector3(barWidth / 2, yPosition, 0)
@@ -21,7 +19,6 @@ export function createHealthManager(scene, rocketship) {
   bgLine.parent = rocketship;
   bgLine.renderingGroupId = 1;
 
-  // Health line (colored based on health)
   let healthLine = null;
 
   function updateHealthBar() {
@@ -29,14 +26,12 @@ export function createHealthManager(scene, rocketship) {
       healthLine.dispose();
     }
 
-    // Determine color based on health percentage
     let barColor;
     const healthPercent = (health / maxHealth) * 100;
-    if (healthPercent > 66) barColor = new BABYLON.Color3(0, 1, 0); // Green
-    else if (healthPercent > 33) barColor = new BABYLON.Color3(1, 1, 0); // Yellow
-    else barColor = new BABYLON.Color3(1, 0, 0); // Red
+    if (healthPercent > 66) barColor = new BABYLON.Color3(0, 1, 0);
+    else if (healthPercent > 33) barColor = new BABYLON.Color3(1, 1, 0);
+    else barColor = new BABYLON.Color3(1, 0, 0);
 
-    // Create health line based on current health
     const healthWidth = (health / maxHealth) * barWidth;
     const healthPoints = [
       new BABYLON.Vector3(-barWidth / 2, yPosition, 0),
@@ -50,7 +45,6 @@ export function createHealthManager(scene, rocketship) {
 
   function flashRocketship() {
     if (!rocketship.material) {
-      // Create a material if it doesn't exist
       rocketship.material = new BABYLON.StandardMaterial('rocketshipMaterial', scene);
       rocketship.material.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.8);
       rocketship.material.emissiveColor = new BABYLON.Color3(0, 0, 0);
@@ -86,14 +80,12 @@ export function createHealthManager(scene, rocketship) {
   }
 
   function showDamagePopup(damageAmount, camera) {
-    // Get the world position above the rocketship
     const healthBarWorldPos = new BABYLON.Vector3(
       rocketship.position.x,
       rocketship.position.y + 1.2,
       rocketship.position.z
     );
     
-    // Project 3D world position to 2D screen coordinates
     const engine = scene.getEngine();
     const screenPos = BABYLON.Vector3.Project(
       healthBarWorldPos,
@@ -117,7 +109,6 @@ export function createHealthManager(scene, rocketship) {
     popup.className = 'damageFloat';
     document.body.appendChild(popup);
 
-    // Animate upward and fade out
     let yOffset = 0;
     const animationInterval = setInterval(() => {
       yOffset += 2;
@@ -147,7 +138,6 @@ export function createHealthManager(scene, rocketship) {
     const impostor = rocketship.physicsImpostor;
     
     if (!impostor) {
-      console.error("No physics impostor found for collision detection!");
       return;
     }
 
@@ -177,7 +167,6 @@ export function createHealthManager(scene, rocketship) {
     const impostor = rocketship.physicsImpostor;
     
     if (!impostor) {
-      console.error("No physics impostor found for collision detection!");
       return;
     }
 

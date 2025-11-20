@@ -25,10 +25,7 @@ export const createCountdown = () => {
         font-family: 'Arial', sans-serif;
     `;
     countdownOverlay.appendChild(countdownNumber);
-
-    /**
-     * @param {Function} onComplete
-     */
+    
     const startCountdown = (onComplete) => {
         let count = 3;
         countdownOverlay.style.display = 'flex';
