@@ -18,9 +18,10 @@ const scene = createScene(engine);
 
 const asteroidSystem = createAsteroidManager(scene);
 const projectileManager = createProjectileManager(scene);
-const ufo = createUFO(scene, projectileManager);
 
 const spaceship = await createRocketship(scene);
+const ufo = await createUFO(scene, projectileManager);
+
 const shield = createShield(scene, spaceship, scene.activeCamera);
 const healthManager = createHealthManager(scene, spaceship, shield);
 const healthBoost = createHealthBoost(scene, spaceship, healthManager, scene.activeCamera);

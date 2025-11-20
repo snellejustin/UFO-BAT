@@ -1,18 +1,50 @@
 import * as BABYLON from '@babylonjs/core';
+import '@babylonjs/loaders/glTF';
 
-export const createUFO = (scene, projectileManager) => {
-    const ufo = BABYLON.MeshBuilder.CreateSphere('ufo', { diameterY: 0.2, diameter: 0.3 }, scene);
-    ufo.position.set(0, 15, 0);
-    
+const smoothStep = (t) => t * t * (3 - 2 * t);
+
+const UFO_CONFIG = {
+    startPosition: { x: 0, y: 15, z: 0 },
+    rotation: { default: -45, min: -70, max: -40 },
+    pathPoints: 5,
+    pathXRange: { min: -8, max: 8 },
+    pathYRange: { min: 4, max: 7 },
+    timePerPoint: 2000,
+    enterDuration: 2000,
+    exitDuration: 1000,
+    totalShots: 3,
+    rotationSpeed: 0.001
+};
+
+export const createUFO = async (scene, projectileManager) => {
+    const result = await BABYLON.SceneLoader.ImportMeshAsync(
+        "",
+        "assets/blender-models/",
+        "ufo.glb",
+        scene
+    );
+
+    const ufo = result.meshes[0];
+    ufo.name = "ufo";
+    ufo.position.set(UFO_CONFIG.startPosition.x, UFO_CONFIG.startPosition.y, UFO_CONFIG.startPosition.z);
+
+    const ufoMeshes = result.meshes.filter(mesh => mesh !== ufo);
+    const setUFORotation = (angle) => {
+        ufoMeshes.forEach(mesh => {
+            mesh.rotation.x = BABYLON.Tools.ToRadians(angle);
+        });
+    };
+    setUFORotation(UFO_CONFIG.rotation.default);
+
     let isFlying = false;
     let flyingAnimation = null;
 
     const generateRandomPath = () => {
         const path = [];
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < UFO_CONFIG.pathPoints; i++) {
             path.push(new BABYLON.Vector2(
-                Math.random() * 16 - 8,
-                Math.random() * 3 + 4
+                Math.random() * (UFO_CONFIG.pathXRange.max - UFO_CONFIG.pathXRange.min) + UFO_CONFIG.pathXRange.min,
+                Math.random() * (UFO_CONFIG.pathYRange.max - UFO_CONFIG.pathYRange.min) + UFO_CONFIG.pathYRange.min
             ));
         }
         return path;
@@ -20,50 +52,53 @@ export const createUFO = (scene, projectileManager) => {
 
     const flyUFO = (onComplete) => {
         if (isFlying) return;
-        
+
         isFlying = true;
         const path = generateRandomPath();
-        
+
         let currentPointIndex = 0;
         let timeAtPoint = 0;
-        const timePerPoint = 2000;
         let shotsFired = 0;
-        const totalShots = 3;
-
         let phase = 'entering';
-        let enterTime = 0;
-        const enterDuration = 2000;
+        let rotationTime = 0;
 
         flyingAnimation = scene.onBeforeRenderObservable.add(() => {
             const dt = scene.getEngine().getDeltaTime();
 
+            rotationTime += dt;
+            const sineWave = Math.sin(rotationTime * UFO_CONFIG.rotationSpeed);
+            const rotationProgress = smoothStep((sineWave + 1) / 2);
+            const rotationAngle = BABYLON.Scalar.Lerp(UFO_CONFIG.rotation.min, UFO_CONFIG.rotation.max, rotationProgress);
+            setUFORotation(rotationAngle);
+
             if (phase === 'entering') {
-                enterTime += dt;
-                const progress = Math.min(enterTime / enterDuration, 1);
-                ufo.position.y = BABYLON.Scalar.Lerp(15, path[0].y, progress);
-                ufo.position.x = BABYLON.Scalar.Lerp(0, path[0].x, progress);
+                timeAtPoint += dt;
+                const progress = Math.min(timeAtPoint / UFO_CONFIG.enterDuration, 1);
+                const easedProgress = smoothStep(progress);
+                ufo.position.x = BABYLON.Scalar.Lerp(UFO_CONFIG.startPosition.x, path[0].x, easedProgress);
+                ufo.position.y = BABYLON.Scalar.Lerp(UFO_CONFIG.startPosition.y, path[0].y, easedProgress);
 
                 if (progress >= 1) {
                     phase = 'flying';
                     currentPointIndex = 1;
+                    timeAtPoint = 0;
                 }
             }
             else if (phase === 'flying') {
                 timeAtPoint += dt;
-                const progress = Math.min(timeAtPoint / timePerPoint, 1);
+                const progress = Math.min(timeAtPoint / UFO_CONFIG.timePerPoint, 1);
+                const easedProgress = smoothStep(progress);
 
                 const fromPoint = path[currentPointIndex - 1];
                 const toPoint = path[currentPointIndex];
 
-                ufo.position.x = BABYLON.Scalar.Lerp(fromPoint.x, toPoint.x, progress);
-                ufo.position.y = BABYLON.Scalar.Lerp(fromPoint.y, toPoint.y, progress);
+                ufo.position.x = BABYLON.Scalar.Lerp(fromPoint.x, toPoint.x, easedProgress);
+                ufo.position.y = BABYLON.Scalar.Lerp(fromPoint.y, toPoint.y, easedProgress);
 
                 if (progress >= 1) {
-                    if (projectileManager && shotsFired < totalShots) {
-                        if (currentPointIndex === 1 || currentPointIndex === 2 || currentPointIndex === 3) {
-                            projectileManager.shootProjectile(ufo.position.clone());
-                            shotsFired++;
-                        }
+                    if (projectileManager && shotsFired < UFO_CONFIG.totalShots && currentPointIndex <= 3) {
+                        projectileManager.shootProjectile(ufo.position.clone());
+                        shotsFired++;
                     }
 
                     currentPointIndex++;
@@ -71,26 +106,26 @@ export const createUFO = (scene, projectileManager) => {
 
                     if (currentPointIndex >= path.length) {
                         phase = 'exiting';
-                        timeAtPoint = 0;
                     }
                 }
             }
             else if (phase === 'exiting') {
                 timeAtPoint += dt;
-                const exitDuration = 1000;
-                const progress = Math.min(timeAtPoint / exitDuration, 1);
+                const progress = Math.min(timeAtPoint / UFO_CONFIG.exitDuration, 1);
+                const easedProgress = smoothStep(progress);
 
                 const lastPoint = path[path.length - 1];
-                ufo.position.x = BABYLON.Scalar.Lerp(lastPoint.x, 0, progress);
-                ufo.position.y = BABYLON.Scalar.Lerp(lastPoint.y, 15, progress);
+                ufo.position.x = BABYLON.Scalar.Lerp(lastPoint.x, UFO_CONFIG.startPosition.x, easedProgress);
+                ufo.position.y = BABYLON.Scalar.Lerp(lastPoint.y, UFO_CONFIG.startPosition.y, easedProgress);
 
                 if (progress >= 1) {
                     scene.onBeforeRenderObservable.remove(flyingAnimation);
                     flyingAnimation = null;
                     isFlying = false;
-                    
-                    ufo.position.set(0, 15, 0);
-                    
+
+                    ufo.position.set(UFO_CONFIG.startPosition.x, UFO_CONFIG.startPosition.y, UFO_CONFIG.startPosition.z);
+                    setUFORotation(UFO_CONFIG.rotation.default);
+
                     if (onComplete) {
                         onComplete();
                     }

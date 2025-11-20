@@ -8,8 +8,8 @@ export const createProjectileManager = (scene) => {
         projectile.position.copyFrom(position);
 
         const material = new BABYLON.StandardMaterial('projectileMat', scene);
-        material.emissiveColor = new BABYLON.Color3(0, 0, 1);
-        material.diffuseColor = new BABYLON.Color3(0, 0, 1);
+        material.emissiveColor = new BABYLON.Color3(0.063, 0.992, 0.847);
+        material.diffuseColor = new BABYLON.Color3(0.063, 0.992, 0.847);
         projectile.material = material;
 
         projectile.physicsImpostor = new BABYLON.PhysicsImpostor(
