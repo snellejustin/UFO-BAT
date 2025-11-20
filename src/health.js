@@ -144,35 +144,56 @@ export function createHealthManager(scene, rocketship) {
   }
 
   function setupCollisionListener(asteroidManager, camera) {
+    const impostor = rocketship.physicsImpostor;
+    
+    if (!impostor) {
+      console.error("No physics impostor found for collision detection!");
+      return;
+    }
+
     scene.registerBeforeRender(() => {
       asteroidManager.active.forEach((asteroid) => {
-        const distance = BABYLON.Vector3.Distance(rocketship.position, asteroid.position);
+        if (!asteroid.physicsImpostor) return;
         
-        if (distance < 0.8) {
-          const key = asteroid.uniqueId;
-          const now = Date.now();
+        if (!asteroid._collisionRegistered) {
+          asteroid._collisionRegistered = true;
+          
+          impostor.registerOnPhysicsCollide(asteroid.physicsImpostor, () => {
+            const key = asteroid.uniqueId;
+            const now = Date.now();
 
-          if (!lastDamageTime[key] || now - lastDamageTime[key] > damageCooldown) {
-            const damage = Math.ceil(asteroid.scaling.x * 10);
-            takeDamage(damage, camera);
-            lastDamageTime[key] = now;
-          }
+            if (!lastDamageTime[key] || now - lastDamageTime[key] > damageCooldown) {
+              const damage = Math.ceil(asteroid.scaling.x * 10);
+              takeDamage(damage, camera);
+              lastDamageTime[key] = now;
+            }
+          });
         }
       });
     });
   }
 
   function setupProjectileCollisionListener(projectileManager, camera) {
+    const impostor = rocketship.physicsImpostor;
+    
+    if (!impostor) {
+      console.error("No physics impostor found for collision detection!");
+      return;
+    }
+
     scene.registerBeforeRender(() => {
       projectileManager.projectiles.forEach((proj) => {
-        if (!proj.active) return;
+        if (!proj.active || !proj.mesh.physicsImpostor) return;
 
-        const distance = BABYLON.Vector3.Distance(rocketship.position, proj.mesh.position);
-        
-        if (distance < 0.6) {
-          takeDamage(30, camera);
-
-          projectileManager.removeProjectile(proj.mesh);
+        if (!proj._collisionRegistered) {
+          proj._collisionRegistered = true;
+          
+          impostor.registerOnPhysicsCollide(proj.mesh.physicsImpostor, () => {
+            if (proj.active) {
+              takeDamage(30, camera);
+              projectileManager.removeProjectile(proj.mesh);
+            }
+          });
         }
       });
     });

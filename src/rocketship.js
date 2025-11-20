@@ -11,35 +11,60 @@ export const setupArrowKeys = () => {
 };
 
 export const createRocketship = async (scene) => {
-    const result = await BABYLON.SceneLoader.ImportMeshAsync(
+    const visualResult = await BABYLON.SceneLoader.ImportMeshAsync(
         "",
         "assets/blender-models/",
-        "rocketready.glb",
+        "rocket2.glb",
         scene
     );
 
-    const spaceship = result.meshes[0];
+    const collisionResult = await BABYLON.SceneLoader.ImportMeshAsync(
+        "",
+        "assets/blender-models/",
+        "rockethitbox3.glb",
+        scene
+    );
+
+    const spaceship = visualResult.meshes[0];
     spaceship.name = "spaceship";
     spaceship.position.y = 1.3;
 
-    const boundingInfo = spaceship.getHierarchyBoundingVectors();
-    const size = boundingInfo.max.subtract(boundingInfo.min);
-    const radius = Math.max(size.x, size.y, size.z) / 2;
-
-    spaceship.physicsImpostor = new BABYLON.PhysicsImpostor(
-        spaceship,
-        BABYLON.PhysicsImpostor.SphereImpostor,
-        { mass: 2, restitution: 0.25, friction: 0.4 },
-        scene
+    const collisionMeshes = collisionResult.meshes.filter(m => m.getTotalVertices() > 0);
+    const mergedCollision = BABYLON.Mesh.MergeMeshes(
+        collisionMeshes,
+        true,
+        true,
+        undefined,
+        false,
+        false
     );
+    
+    if (mergedCollision) {
+        mergedCollision.name = "spaceshipHitbox";
+        mergedCollision.isVisible = false;
+        mergedCollision.position = spaceship.position.clone();
+        
+        mergedCollision.physicsImpostor = new BABYLON.PhysicsImpostor(
+            mergedCollision,
+            BABYLON.PhysicsImpostor.MeshImpostor,
+            { mass: 2, restitution: 0.25, friction: 0.4 },
+            scene
+        );
 
-    const body = spaceship.physicsImpostor.physicsBody;
-    body.linearDamping = 0.05;
-    body.angularDamping = 0.05;
-    body.linearFactor = new CANNON.Vec3(1, 0, 0);
-    body.angularFactor = new CANNON.Vec3(0, 0, 0);
+        const body = mergedCollision.physicsImpostor.physicsBody;
+        if (body) {
+            body.linearDamping = 0.05;
+            body.angularDamping = 0.05;
+            body.linearFactor = new CANNON.Vec3(1, 0, 0);
+            body.angularFactor = new CANNON.Vec3(0, 0, 0);
+        }
 
-    spaceship.metadata = { baseY: spaceship.position.y };
+        spaceship.physicsImpostor = mergedCollision.physicsImpostor;
+        spaceship.metadata = { 
+            baseY: spaceship.position.y,
+            collisionMesh: mergedCollision
+        };
+    }
 
     return spaceship;
 };
@@ -70,8 +95,14 @@ export const setupRocketshipPhysics = (scene, spaceship, inputMap) => {
         const imp = spaceship.physicsImpostor;
         if (!imp) return;
 
-        const pos = spaceship.getAbsolutePosition();
+        const collisionMesh = spaceship.metadata.collisionMesh;
+        const pos = collisionMesh ? collisionMesh.position : spaceship.position;
         const vel = imp.getLinearVelocity() || BABYLON.Vector3.Zero();
+
+        // Sync visual spaceship with collision mesh position
+        if (collisionMesh) {
+            spaceship.position.copyFrom(collisionMesh.position);
+        }
 
         // Input: -1, 0, +1
         const left = inputMap["ArrowLeft"] ? 1 : 0;
