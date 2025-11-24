@@ -6,16 +6,84 @@ export const createLevelManager = (asteroidSystem, ufo, healthBoost, shield) => 
     const levels = [
         {
             level: 1,
-            duration: 10000,
+            duration: 12000,
             asteroidSpeed: { min: 3, max: 6 },
-            spawnRate: 1
+            spawnRate: 1,
+            ufoConfig: {
+                pathPoints: 4,
+                pathXRange: { min: -6, max: 6 },
+                pathYRange: { min: 5, max: 7 },
+                timePerPoint: 2500,
+                totalShots: 2,
+                enterDuration: 2000,
+                exitDuration: 1000,
+                projectileSpeed: -4
+            }
         },
         {
             level: 2,
             duration: 15000,
-            asteroidSpeed: { min: 5, max: 10 },
-            spawnRate: 1.5
+            asteroidSpeed: { min: 4, max: 8 },
+            spawnRate: 1.3,
+            ufoConfig: {
+                pathPoints: 5,
+                pathXRange: { min: -7, max: 7 },
+                pathYRange: { min: 4.5, max: 7 },
+                timePerPoint: 2200,
+                totalShots: 3,
+                enterDuration: 1800,
+                exitDuration: 1000,
+                projectileSpeed: -5
+            }
         },
+        {
+            level: 3,
+            duration: 18000,
+            asteroidSpeed: { min: 5, max: 10 },
+            spawnRate: 1.6,
+            ufoConfig: {
+                pathPoints: 6,
+                pathXRange: { min: -8, max: 8 },
+                pathYRange: { min: 4, max: 7 },
+                timePerPoint: 2000,
+                totalShots: 4,
+                enterDuration: 1600,
+                exitDuration: 900,
+                projectileSpeed: -6
+            }
+        },
+        {
+            level: 4,
+            duration: 20000,
+            asteroidSpeed: { min: 6, max: 12 },
+            spawnRate: 1.9,
+            ufoConfig: {
+                pathPoints: 7,
+                pathXRange: { min: -9, max: 9 },
+                pathYRange: { min: 3.5, max: 7.5 },
+                timePerPoint: 1800,
+                totalShots: 5,
+                enterDuration: 1400,
+                exitDuration: 800,
+                projectileSpeed: -7
+            }
+        },
+        {
+            level: 5,
+            duration: 25000,
+            asteroidSpeed: { min: 7, max: 15 },
+            spawnRate: 2.2,
+            ufoConfig: {
+                pathPoints: 8,
+                pathXRange: { min: -10, max: 10 },
+                pathYRange: { min: 3, max: 8 },
+                timePerPoint: 1600,
+                totalShots: 6,
+                enterDuration: 1200,
+                exitDuration: 700,
+                projectileSpeed: -8
+            }
+        }
     ];
 
     const showLevelAnnouncement = (levelNumber, onComplete) => {
@@ -103,13 +171,14 @@ export const createLevelManager = (asteroidSystem, ufo, healthBoost, shield) => 
         }
         
         setTimeout(() => {
+            const currentLevelConfig = levels[currentLevel];
             ufo.flyUFO(() => {
                 setTimeout(() => {
                     if (currentLevel + 1 < levels.length) {
                         startWave(currentLevel + 1);
                     }
                 }, 3000);
-            });
+            }, currentLevelConfig.ufoConfig);
         }, 3000);
     };
 

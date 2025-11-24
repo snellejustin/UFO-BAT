@@ -39,22 +39,34 @@ export const createUFO = async (scene, projectileManager) => {
     let isFlying = false;
     let flyingAnimation = null;
 
-    const generateRandomPath = () => {
-        const path = [];
-        for (let i = 0; i < UFO_CONFIG.pathPoints; i++) {
-            path.push(new BABYLON.Vector2(
-                Math.random() * (UFO_CONFIG.pathXRange.max - UFO_CONFIG.pathXRange.min) + UFO_CONFIG.pathXRange.min,
-                Math.random() * (UFO_CONFIG.pathYRange.max - UFO_CONFIG.pathYRange.min) + UFO_CONFIG.pathYRange.min
-            ));
-        }
-        return path;
-    };
-
-    const flyUFO = (onComplete) => {
+    const flyUFO = (onComplete, difficultyConfig = {}) => {
         if (isFlying) return;
 
         isFlying = true;
-        const path = generateRandomPath();
+
+        const config = {
+            pathPoints: difficultyConfig.pathPoints ?? UFO_CONFIG.pathPoints,
+            pathXRange: difficultyConfig.pathXRange ?? UFO_CONFIG.pathXRange,
+            pathYRange: difficultyConfig.pathYRange ?? UFO_CONFIG.pathYRange,
+            timePerPoint: difficultyConfig.timePerPoint ?? UFO_CONFIG.timePerPoint,
+            totalShots: difficultyConfig.totalShots ?? UFO_CONFIG.totalShots,
+            enterDuration: difficultyConfig.enterDuration ?? UFO_CONFIG.enterDuration,
+            exitDuration: difficultyConfig.exitDuration ?? UFO_CONFIG.exitDuration,
+            projectileSpeed: difficultyConfig.projectileSpeed ?? -5
+        };
+
+        const generatePath = () => {
+            const path = [];
+            for (let i = 0; i < config.pathPoints; i++) {
+                path.push(new BABYLON.Vector2(
+                    Math.random() * (config.pathXRange.max - config.pathXRange.min) + config.pathXRange.min,
+                    Math.random() * (config.pathYRange.max - config.pathYRange.min) + config.pathYRange.min
+                ));
+            }
+            return path;
+        };
+
+        const path = generatePath();
 
         let currentPointIndex = 0;
         let timeAtPoint = 0;
@@ -73,7 +85,7 @@ export const createUFO = async (scene, projectileManager) => {
 
             if (phase === 'entering') {
                 timeAtPoint += dt;
-                const progress = Math.min(timeAtPoint / UFO_CONFIG.enterDuration, 1);
+                const progress = Math.min(timeAtPoint / config.enterDuration, 1);
                 const easedProgress = smoothStep(progress);
                 ufo.position.x = BABYLON.Scalar.Lerp(UFO_CONFIG.startPosition.x, path[0].x, easedProgress);
                 ufo.position.y = BABYLON.Scalar.Lerp(UFO_CONFIG.startPosition.y, path[0].y, easedProgress);
@@ -86,7 +98,7 @@ export const createUFO = async (scene, projectileManager) => {
             }
             else if (phase === 'flying') {
                 timeAtPoint += dt;
-                const progress = Math.min(timeAtPoint / UFO_CONFIG.timePerPoint, 1);
+                const progress = Math.min(timeAtPoint / config.timePerPoint, 1);
                 const easedProgress = smoothStep(progress);
 
                 const fromPoint = path[currentPointIndex - 1];
@@ -96,8 +108,8 @@ export const createUFO = async (scene, projectileManager) => {
                 ufo.position.y = BABYLON.Scalar.Lerp(fromPoint.y, toPoint.y, easedProgress);
 
                 if (progress >= 1) {
-                    if (projectileManager && shotsFired < UFO_CONFIG.totalShots && currentPointIndex <= 3) {
-                        projectileManager.shootProjectile(ufo.position.clone());
+                    if (projectileManager && shotsFired < config.totalShots && currentPointIndex <= config.pathPoints - 2) {
+                        projectileManager.shootProjectile(ufo.position.clone(), config.projectileSpeed);
                         shotsFired++;
                     }
 
@@ -111,7 +123,7 @@ export const createUFO = async (scene, projectileManager) => {
             }
             else if (phase === 'exiting') {
                 timeAtPoint += dt;
-                const progress = Math.min(timeAtPoint / UFO_CONFIG.exitDuration, 1);
+                const progress = Math.min(timeAtPoint / config.exitDuration, 1);
                 const easedProgress = smoothStep(progress);
 
                 const lastPoint = path[path.length - 1];

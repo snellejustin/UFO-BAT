@@ -1,5 +1,6 @@
 import * as BABYLON from '@babylonjs/core';
 import '@babylonjs/core/Physics/physicsEngineComponent';
+import '@babylonjs/loaders/glTF';
 
 class AsteroidManager {
     constructor(scene, options = {}) {
@@ -26,60 +27,121 @@ class AsteroidManager {
         this.linDamp = options.linearDamping ?? 0.02;
         this.angDamp = options.angularDamping ?? 0.05;
 
-        this.maxPool = options.maxPool ?? 300;
-
-        this.material = new BABYLON.StandardMaterial('asteroidMat', this.scene);
-        this.material.diffuseColor = new BABYLON.Color3(0.65, 0.65, 0.65);
-        this.material.specularColor = new BABYLON.Color3(0.15, 0.15, 0.15);
-
-        this.source = BABYLON.MeshBuilder.CreateIcoSphere('asteroid_src', {
-            radius: 0.3,
-            subdivisions: 2
-        }, this.scene);
-        this.source.isVisible = false;
-        this.source.material = this.material;
+        this.maxPool = options.maxPool ?? 30;
 
         this.pool = [];
         this.active = [];
         this.spawnAcc = 0;
         this.isActive = false;
+        this.asteroidModel = null;
+        this.isModelLoaded = false;
+
+        this._loadAsteroidModel();
+    }
+
+    async _loadAsteroidModel() {
+        try {
+            const visualResult = await BABYLON.SceneLoader.ImportMeshAsync(
+                "",
+                "assets/blender-models/",
+                "asteroidnew5.glb",
+                this.scene
+            );
+
+            this.asteroidModel = visualResult.meshes[0];
+            this.asteroidModel.name = "asteroid_source";
+            this.asteroidModel.setEnabled(false);
+
+            visualResult.meshes.forEach(mesh => {
+                mesh.setEnabled(false);
+            });
+
+            this.isModelLoaded = true;
+        } catch (error) {
+            console.error("Failed to load asteroid model:", error);
+        }
     }
 
     _rand(min, max) { return min + Math.random() * (max - min); }
 
+    _createNewAsteroid() {
+        const visualMesh = this.asteroidModel.clone('asteroid_visual');
+        visualMesh.setEnabled(true);
+
+        this.asteroidModel.getChildMeshes().forEach(childMesh => {
+            const clonedChild = childMesh.clone(childMesh.name + '_clone');
+            clonedChild.parent = visualMesh;
+            clonedChild.setEnabled(true);
+        });
+
+        const hitbox = BABYLON.MeshBuilder.CreateSphere(
+            "asteroidHitbox",
+            { diameter: 1 },
+            this.scene
+        );
+        hitbox.isVisible = false;
+
+        hitbox.physicsImpostor = new BABYLON.PhysicsImpostor(
+            hitbox,
+            BABYLON.PhysicsImpostor.SphereImpostor,
+            { 
+                mass: this.mass, 
+                restitution: this.restitution, 
+                friction: this.friction
+            },
+            this.scene
+        );
+
+        const body = hitbox.physicsImpostor.physicsBody;
+        body.linearDamping = this.linDamp;
+        body.angularDamping = this.angDamp;
+
+        // Link visual mesh to the same physics impostor
+        visualMesh.physicsImpostor = hitbox.physicsImpostor;
+        visualMesh.metadata = { 
+            hitbox: hitbox
+        };
+
+        return visualMesh;
+    }
+
     _makeOrReuseAsteroid() {
-        let mesh;
+        if (!this.isModelLoaded) return null;
+
+        let asteroid;
         if (this.pool.length > 0) {
-            mesh = this.pool.pop();
-            mesh.setEnabled(true);
+            // Reuse from pool
+            asteroid = this.pool.pop();
+            asteroid.setEnabled(true);
         } else if (this.active.length + this.pool.length < this.maxPool) {
-            mesh = this.source.clone('asteroid');
-            mesh.isVisible = true;
-            mesh.material = this.material;
-
-            mesh.physicsImpostor = new BABYLON.PhysicsImpostor(
-                mesh,
-                BABYLON.PhysicsImpostor.SphereImpostor,
-                { mass: this.mass, restitution: this.restitution, friction: this.friction },
-                this.scene
-            );
-
-            const body = mesh.physicsImpostor.physicsBody;
-            body.linearDamping = this.linDamp;
-            body.angularDamping = this.angDamp;
-
+            // Create new asteroid (lazy creation)
+            asteroid = this._createNewAsteroid();
         } else {
+            // Pool exhausted
             return null;
         }
 
         const size = this._rand(this.sizeMin, this.sizeMax);
-        mesh.scaling.set(size, size, size);
-        mesh.position.set(
+        asteroid.scaling.set(size, size, size);
+        asteroid.position.set(
             this._rand(-this.spawnWidth * 0.5, this.spawnWidth * 0.5),
             this.spawnHeight,
             0
         );
-        mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+        asteroid.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+
+        const hitbox = asteroid.metadata.hitbox;
+        hitbox.position.copyFrom(asteroid.position);
+        hitbox.scaling.copyFrom(asteroid.scaling);
+        
+        // Manually update Cannon.js sphere radius (it doesn't auto-scale with mesh scaling)
+        const baseRadius = 0.5;
+        const scaledRadius = baseRadius * size;
+        const cannonBody = hitbox.physicsImpostor.physicsBody;
+        if (cannonBody && cannonBody.shapes && cannonBody.shapes[0]) {
+            cannonBody.shapes[0].radius = scaledRadius;
+            cannonBody.updateBoundingRadius();
+        }
 
         const vx = this._rand(this.driftXMin, this.driftXMax);
         const vy = -this._rand(this.speedMin, this.speedMax);
@@ -87,10 +149,10 @@ class AsteroidManager {
         const wzy = this._rand(this.spinMin, this.spinMax);
         const wzz = this._rand(this.spinMin, this.spinMax);
 
-        mesh.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(vx, vy, 0));
-        mesh.physicsImpostor.setAngularVelocity(new BABYLON.Vector3(wzx, wzy, wzz));
+        hitbox.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(vx, vy, 0));
+        hitbox.physicsImpostor.setAngularVelocity(new BABYLON.Vector3(wzx, wzy, wzz));
 
-        return mesh;
+        return asteroid;
     }
 
     update() {
@@ -108,38 +170,56 @@ class AsteroidManager {
         }
 
         for (let i = this.active.length - 1; i >= 0; i--) {
-            const m = this.active[i];
-            if (m.position.y < this.deathZone) {
-                m.setEnabled(false);
-                if (m.physicsImpostor) {
-                    m.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
-                    m.physicsImpostor.setAngularVelocity(BABYLON.Vector3.Zero());
+            const asteroid = this.active[i];
+            const hitbox = asteroid.metadata?.hitbox;
+            
+            if (hitbox) {
+                // Sync visual asteroid with hitbox physics position and rotation
+                asteroid.position.copyFrom(hitbox.position);
+                asteroid.rotation.copyFrom(hitbox.rotation);
+                
+                if (hitbox.position.y < this.deathZone) {
+                    asteroid.setEnabled(false);
+                    
+                    // Reset velocities for pool reuse
+                    hitbox.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
+                    hitbox.physicsImpostor.setAngularVelocity(BABYLON.Vector3.Zero());
+                    
+                    this.active.splice(i, 1);
+                    this.pool.push(asteroid);
                 }
-                this.active.splice(i, 1);
-                this.pool.push(m);
             }
         }
     }
 
     cleanup() {
-        this.active.forEach(m => {
-            m.setEnabled(false);
-            if (m.physicsImpostor) {
-                m.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
-                m.physicsImpostor.setAngularVelocity(BABYLON.Vector3.Zero());
+        this.active.forEach(asteroid => {
+            asteroid.setEnabled(false);
+            
+            const hitbox = asteroid.metadata?.hitbox;
+            if (hitbox && hitbox.physicsImpostor) {
+                hitbox.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
+                hitbox.physicsImpostor.setAngularVelocity(BABYLON.Vector3.Zero());
             }
-            this.pool.push(m);
+            this.pool.push(asteroid);
         });
         this.active.length = 0;
 
-        this.pool.forEach(m => {
-            m.physicsImpostor?.dispose();
-            m.dispose();
+        this.pool.forEach(asteroid => {
+            const hitbox = asteroid.metadata?.hitbox;
+            if (hitbox) {
+                hitbox.physicsImpostor?.dispose();
+                hitbox.dispose();
+            }
+            asteroid.getChildMeshes().forEach(mesh => mesh.dispose());
+            asteroid.dispose();
         });
         this.pool.length = 0;
 
-        this.source?.dispose();
-        this.material?.dispose();
+        if (this.asteroidModel) {
+            this.asteroidModel.getChildMeshes().forEach(mesh => mesh.dispose());
+            this.asteroidModel.dispose();
+        }
     }
 }
 

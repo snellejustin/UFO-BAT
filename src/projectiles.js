@@ -3,7 +3,7 @@ import * as BABYLON from '@babylonjs/core';
 export const createProjectileManager = (scene) => {
     const projectiles = [];
 
-    const shootProjectile = (position) => {
+    const shootProjectile = (position, speed = -5) => {
         const projectile = BABYLON.MeshBuilder.CreateSphere('projectile', { diameter: 0.2 }, scene);
         projectile.position.copyFrom(position);
 
@@ -19,7 +19,7 @@ export const createProjectileManager = (scene) => {
             scene
         );
 
-        projectile.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, -5, 0));
+        projectile.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, speed, 0));
 
         projectiles.push({
             mesh: projectile,

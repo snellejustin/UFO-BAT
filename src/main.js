@@ -3,7 +3,6 @@ import { createRocketship, setupRocketshipPhysics, setupArrowKeys } from './rock
 import { createEngine, startRenderLoop } from './engine.js';
 import { createAsteroidManager } from './asteroids.js';
 import { createPlayButton } from './ui.js';
-import { createScoreManager } from './score.js';
 import { createHealthManager } from './health.js';
 import { createCountdown } from './countdown.js';
 import { createLevelManager } from './levels.js';
@@ -29,7 +28,6 @@ const healthBoost = createHealthBoost(scene, spaceship, healthManager, scene.act
 const levelManager = createLevelManager(asteroidSystem, ufo, healthBoost, shield);
 const countdown = createCountdown();
 const gameState = createPlayButton(countdown, levelManager);
-const scoreManager = createScoreManager();
 
 disableCameraArrowKeys(scene);
 const inputMap = setupArrowKeys();
@@ -41,8 +39,4 @@ healthManager.setupProjectileCollisionListener(projectileManager, scene.activeCa
 startRenderLoop(engine, scene, () => {
     asteroidSystem.update();
     projectileManager.update();
-    
-    if (levelManager.isWaveActive()) {
-        scoreManager.addScore(1);
-    }
 });
