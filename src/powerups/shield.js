@@ -1,16 +1,18 @@
 import * as BABYLON from '@babylonjs/core';
+import '@babylonjs/loaders/glTF';
 
 const SHIELD_CONFIG = {
-    meshSize: 0.8,
+    scale: 0.5, // Scale down the model
     spawnHeight: 20,
     spawnWidthRange: 10,
     fallSpeed: -4,
+    rotationSpeed: 2, // Radians per second
+    hitboxDiameter: 1, // Sphere hitbox size
     duration: 10000,
     flickerInterval: 200,
     despawnHeight: -5,
 
     color: {
-        diffuse: new BABYLON.Color3(0, 0.5, 1),
         emissive: new BABYLON.Color3(0, 0.2, 0.5)
     },
 
@@ -37,6 +39,8 @@ const SHIELD_CONFIG = {
 
 export function createShield(scene, rocketship, camera) {
     let powerup = null;
+    let shieldModel = null;
+    let isModelLoaded = false;
     let isShieldActive = false;
     let shieldTimeout = null;
     let flickerInterval = null;
@@ -44,37 +48,92 @@ export function createShield(scene, rocketship, camera) {
     let timerInterval = null;
     let shieldEndTime = 0;
 
+    // Load shield model
+    const loadShieldModel = async () => {
+        try {
+            const result = await BABYLON.SceneLoader.ImportMeshAsync(
+                "",
+                "assets/blender-models/",
+                "shieldpowerup3.glb",
+                scene
+            );
+
+            shieldModel = result.meshes[0];
+            shieldModel.name = "shield_source";
+            shieldModel.setEnabled(false);
+
+            result.meshes.forEach(mesh => {
+                mesh.setEnabled(false);
+            });
+
+            isModelLoaded = true;
+        } catch (error) {
+            console.error("Failed to load shield model:", error);
+        }
+    };
+
+    loadShieldModel();
+
     const spawnPowerup = () => {
+        console.log('[SHIELD] spawnPowerup called, isModelLoaded:', isModelLoaded);
+        if (!isModelLoaded) return;
+        
         if (powerup) {
             powerup.dispose();
         }
 
-        powerup = BABYLON.MeshBuilder.CreateSphere('shield', { diameter: SHIELD_CONFIG.meshSize }, scene);
+        // Clone the shield model
+        const visualMesh = shieldModel.clone('shield_visual');
+        visualMesh.setEnabled(true);
+        visualMesh.scaling.setAll(SHIELD_CONFIG.scale);
+        visualMesh.rotation = new BABYLON.Vector3(-20, 0, 0); // Ensure rotation starts at zero
+        
+        console.log('[SHIELD] Visual mesh created:', visualMesh.name, 'rotation:', visualMesh.rotation);
 
-        const material = new BABYLON.StandardMaterial('shieldMat', scene);
-        material.diffuseColor = SHIELD_CONFIG.color.diffuse;
-        material.emissiveColor = SHIELD_CONFIG.color.emissive;
-        powerup.material = material;
+        shieldModel.getChildMeshes().forEach(childMesh => {
+            const clonedChild = childMesh.clone(childMesh.name + '_clone');
+            clonedChild.parent = visualMesh;
+            clonedChild.setEnabled(true);
+        });
+
+        // Create separate invisible hitbox sphere for physics (like asteroids)
+        const hitbox = BABYLON.MeshBuilder.CreateSphere(
+            "shieldHitbox",
+            { diameter: SHIELD_CONFIG.hitboxDiameter },
+            scene
+        );
+        hitbox.isVisible = false;
 
         const spawnX = (Math.random() - 0.5) * SHIELD_CONFIG.spawnWidthRange;
-        powerup.position.set(spawnX, SHIELD_CONFIG.spawnHeight, 0);
+        visualMesh.position.set(spawnX, SHIELD_CONFIG.spawnHeight, 0);
+        hitbox.position.copyFrom(visualMesh.position);
 
-        powerup.physicsImpostor = new BABYLON.PhysicsImpostor(
-            powerup,
+        hitbox.physicsImpostor = new BABYLON.PhysicsImpostor(
+            hitbox,
             BABYLON.PhysicsImpostor.SphereImpostor,
             SHIELD_CONFIG.physics,
             scene
         );
 
-        powerup.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, SHIELD_CONFIG.fallSpeed, 0));
+        hitbox.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, SHIELD_CONFIG.fallSpeed, 0));
+
+        // Link visual to hitbox
+        visualMesh.physicsImpostor = hitbox.physicsImpostor;
+        visualMesh.metadata = { hitbox: hitbox };
+        
+        powerup = visualMesh;
 
         const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
 
-        collisionMesh.physicsImpostor.registerOnPhysicsCollide(powerup.physicsImpostor, () => {
+        collisionMesh.physicsImpostor.registerOnPhysicsCollide(hitbox.physicsImpostor, () => {
             if (powerup) {
                 activateShield();
                 showShieldPopup(camera);
 
+                const hitboxToDispose = powerup.metadata?.hitbox;
+                if (hitboxToDispose) {
+                    hitboxToDispose.dispose();
+                }
                 powerup.dispose();
                 powerup = null;
             }
@@ -209,9 +268,29 @@ export function createShield(scene, rocketship, camera) {
     };
 
     scene.registerBeforeRender(() => {
-        if (powerup && powerup.position.y < SHIELD_CONFIG.despawnHeight) {
-            powerup.dispose();
-            powerup = null;
+        if (powerup) {
+            const hitbox = powerup.metadata?.hitbox;
+            
+            if (hitbox) {
+                // Sync position only
+                powerup.position.copyFrom(hitbox.position);
+                
+                // Despawn if too low
+                if (hitbox.position.y < SHIELD_CONFIG.despawnHeight) {
+                    console.log('[SHIELD] Despawning at y:', hitbox.position.y);
+                    hitbox.dispose();
+                    powerup.dispose();
+                    powerup = null;
+                    return;
+                }
+            }
+            
+            // Simple rotation - rotate the visual every frame
+            powerup.rotation.y += 0.03;
+            
+            if (Math.random() < 0.01) { // Log occasionally (1% of frames)
+                console.log('[SHIELD] Rotating, rotation.y:', powerup.rotation.y);
+            }
         }
     });
 
