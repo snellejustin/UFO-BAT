@@ -2,6 +2,7 @@ import * as BABYLON from '@babylonjs/core';
 import '@babylonjs/core/Physics/physicsEngineComponent';
 import '@babylonjs/loaders/glTF';
 import * as CANNON from 'cannon-es';
+import { sensorData } from './witmotion.js';
 
 export const setupArrowKeys = () => {
     const inputMap = {};
@@ -99,22 +100,21 @@ export const createRocketship = async (scene) => {
     return spaceship;
 };
 
-
 export const setupRocketshipPhysics = (scene, spaceship, inputMap) => {
-    let ctrlVX = 0;                 // target sideways speed from input (units/sec)
-    const maxSpeedCtrl = 14.0;       // how fast the ship can go sideways
-    const accelCtrl = 0.08;      // how quickly target speed ramps up (per frame)
-    const decelCtrl = 0.92;      // how target speed eases when no input (0..1)
-    const steerBlendActive = 0.25;  // blend toward ctrlVX while steering (snappier)
-    const steerBlendIdle = 0.08;  // blend while coasting (gentler → lets bumps show)
+    let ctrlVX = 0;
+    const maxSpeedCtrl = 14.0;
+    const accelCtrl = 0.08;
+    const decelCtrl = 0.92;
+    const steerBlendActive = 0.25;
+    const steerBlendIdle = 0.08;
 
-    // Calculate bounds based on screen width (device-aware)
+    // SENSOR SETTINGS
+    const maxSensorTilt = 30; //30° = Max Speed.
+    const deadZone = 2;       //Ignore tiny shakes.
+
     const canvas = scene.getEngine().getRenderingCanvas();
-    
-    // Use screen width to determine world space bounds
-    // Approximate: 1 unit in world space per 50 pixels
     const screenWidth = canvas.clientWidth;
-    const unitsPerPixel = 0.016; // 1 unit = 50 pixels
+    const unitsPerPixel = 0.016;
     const xMax = (screenWidth / 2) * unitsPerPixel;
     const xMin = -xMax;
 
@@ -129,26 +129,34 @@ export const setupRocketshipPhysics = (scene, spaceship, inputMap) => {
         const pos = collisionMesh ? collisionMesh.position : spaceship.position;
         const vel = imp.getLinearVelocity() || BABYLON.Vector3.Zero();
 
-        // Sync visual spaceship with collision mesh position
         if (collisionMesh) {
             spaceship.position.copyFrom(collisionMesh.position);
         }
 
-        // Input: -1, 0, +1
+        //inputs
+        //keyboard
         const left = inputMap["ArrowLeft"] ? 1 : 0;
         const right = inputMap["ArrowRight"] ? 1 : 0;
-        const input = right - left;
+        let input = right - left;
 
-        //Build target control speed (smooth accel/decel)
+        //override with sensor
+        if (sensorData.isConnected) {
+            let roll = sensorData.roll;
+            if (Math.abs(roll) < deadZone) roll = 0;
+
+            //clamping for max speed above 90 degrees (which we will never do lol)
+            input = BABYLON.Scalar.Clamp(roll / maxSensorTilt, -1, 1);
+        }
+
+        //physics
+
         if (input !== 0) {
             ctrlVX += input * accelCtrl * maxSpeedCtrl;
         } else {
-            ctrlVX *= decelCtrl; // glide down smoothly when keys released
+            ctrlVX *= decelCtrl;
         }
         ctrlVX = BABYLON.Scalar.Clamp(ctrlVX, -maxSpeedCtrl, maxSpeedCtrl);
 
-        // Blend actual physics velocity toward the control target
-        // When steering: snappier blend; when idle: gentle blend so asteroid hits are still felt.
         const blend = input !== 0 ? steerBlendActive : steerBlendIdle;
         const newVX = BABYLON.Scalar.Lerp(vel.x, ctrlVX, blend);
         imp.setLinearVelocity(new BABYLON.Vector3(newVX, vel.y, 0));
@@ -164,14 +172,10 @@ export const setupRocketshipPhysics = (scene, spaceship, inputMap) => {
 
         // Pin Y
         const baseY = spaceship.metadata?.baseY ?? 1.3;
-        const body = imp.physicsBody; // Cannon.Body
+        const body = imp.physicsBody;
         body.velocity.y = 0;
         body.position.y = baseY;
         spaceship.position.y = baseY;
-
-        //Slight tilt based on real velocity
-        const tiltTarget = -(newVX / maxSpeedCtrl) * (maxTilt * 3);
-        spaceship.rotation.z = BABYLON.Scalar.Lerp(spaceship.rotation.z, tiltTarget, tiltSmoothness);
     });
 
     return {

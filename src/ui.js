@@ -1,3 +1,5 @@
+import { connectToWitMotion } from './witmotion.js';
+
 export const createPlayButton = (countdown, levelManager) => {
     const gameState = {
         isPlaying: false,
@@ -50,9 +52,11 @@ export const createPlayButton = (countdown, levelManager) => {
         playButton.style.boxShadow = '0 0 20px rgba(0, 255, 0, 0.7)';
     });
 
-    playButton.addEventListener('click', () => {
-        uiContainer.style.display = 'none';
+    playButton.addEventListener('click', async () => {
         
+        await connectToWitMotion();
+        uiContainer.style.display = 'none';
+
         countdown.startCountdown(() => {
             gameState.isPlaying = true;
             levelManager.startFirstLevel();
