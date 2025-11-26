@@ -146,12 +146,13 @@ export function createHealthManager(scene, rocketship, shieldManager) {
 
     scene.registerBeforeRender(() => {
       asteroidManager.active.forEach((asteroid) => {
-        if (!asteroid.physicsImpostor) return;
+        const hitbox = asteroid.metadata?.hitbox;
+        if (!hitbox || !hitbox.physicsImpostor) return;
         
-        if (!asteroid._collisionRegistered) {
-          asteroid._collisionRegistered = true;
+        if (!hitbox._collisionRegistered) {
+          hitbox._collisionRegistered = true;
           
-          impostor.registerOnPhysicsCollide(asteroid.physicsImpostor, () => {
+          impostor.registerOnPhysicsCollide(hitbox.physicsImpostor, () => {
             const key = asteroid.uniqueId;
             const now = Date.now();
 

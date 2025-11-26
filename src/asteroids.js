@@ -8,7 +8,7 @@ class AsteroidManager {
 
         this.spawnRatePerSecond = options.spawnRatePerSecond ?? 1;
         this.spawnWidth = options.spawnWidth ?? 16;
-        this.spawnHeight = options.spawnHeight ?? 25;
+        this.spawnHeight = options.spawnHeight ?? 13;
         this.deathZone = options.deathZone ?? -5;
 
         this.speedMin = options.speedMin ?? null;
@@ -26,6 +26,9 @@ class AsteroidManager {
         this.friction = options.friction ?? 0.2;
         this.linDamp = options.linearDamping ?? 0.02;
         this.angDamp = options.angularDamping ?? 0.05;
+
+        this.maxLifetime = 8.0;
+        this.flickerDuration = 1.5;
 
         this.maxPool = options.maxPool ?? 30;
 
@@ -62,11 +65,21 @@ class AsteroidManager {
         }
     }
 
-    _rand(min, max) { return min + Math.random() * (max - min); }
+    _rand(min, max) { 
+        return min + Math.random() * (max - min); 
+    }
+
+    _setAsteroidVisibility(asteroid, visibility) {
+        asteroid.visibility = visibility;
+        if (asteroid.getChildMeshes) {
+            asteroid.getChildMeshes().forEach(m => m.visibility = visibility);
+        }
+    }
 
     _createNewAsteroid() {
         const visualMesh = this.asteroidModel.clone('asteroid_visual');
         visualMesh.setEnabled(true);
+        visualMesh.rotationQuaternion = null;
 
         this.asteroidModel.getChildMeshes().forEach(childMesh => {
             const clonedChild = childMesh.clone(childMesh.name + '_clone');
@@ -84,9 +97,9 @@ class AsteroidManager {
         hitbox.physicsImpostor = new BABYLON.PhysicsImpostor(
             hitbox,
             BABYLON.PhysicsImpostor.SphereImpostor,
-            { 
-                mass: this.mass, 
-                restitution: this.restitution, 
+            {
+                mass: this.mass,
+                restitution: this.restitution,
                 friction: this.friction
             },
             this.scene
@@ -96,10 +109,9 @@ class AsteroidManager {
         body.linearDamping = this.linDamp;
         body.angularDamping = this.angDamp;
 
-        // Link visual mesh to the same physics impostor
-        visualMesh.physicsImpostor = hitbox.physicsImpostor;
-        visualMesh.metadata = { 
-            hitbox: hitbox
+        visualMesh.metadata = {
+            hitbox: hitbox,
+            lifeTime: 0
         };
 
         return visualMesh;
@@ -110,16 +122,18 @@ class AsteroidManager {
 
         let asteroid;
         if (this.pool.length > 0) {
-            // Reuse from pool
             asteroid = this.pool.pop();
             asteroid.setEnabled(true);
         } else if (this.active.length + this.pool.length < this.maxPool) {
-            // Create new asteroid (lazy creation)
             asteroid = this._createNewAsteroid();
         } else {
-            // Pool exhausted
             return null;
         }
+
+        asteroid.rotationQuaternion = null;
+
+        asteroid.metadata.lifeTime = 0;
+        this._setAsteroidVisibility(asteroid, 1.0);
 
         const size = this._rand(this.sizeMin, this.sizeMax);
         asteroid.scaling.set(size, size, size);
@@ -131,15 +145,13 @@ class AsteroidManager {
         asteroid.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
 
         const hitbox = asteroid.metadata.hitbox;
+        hitbox.setEnabled(true);
         hitbox.position.copyFrom(asteroid.position);
-        hitbox.scaling.copyFrom(asteroid.scaling);
-        
-        // Manually update Cannon.js sphere radius (it doesn't auto-scale with mesh scaling)
+
         const baseRadius = 0.5;
-        const scaledRadius = baseRadius * size;
         const cannonBody = hitbox.physicsImpostor.physicsBody;
         if (cannonBody && cannonBody.shapes && cannonBody.shapes[0]) {
-            cannonBody.shapes[0].radius = scaledRadius;
+            cannonBody.shapes[0].radius = baseRadius * size;
             cannonBody.updateBoundingRadius();
         }
 
@@ -149,15 +161,16 @@ class AsteroidManager {
         const wzy = this._rand(this.spinMin, this.spinMax);
         const wzz = this._rand(this.spinMin, this.spinMax);
 
+        asteroid.metadata.spinRates = { x: wzx, y: wzy, z: wzz };
+
         hitbox.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(vx, vy, 0));
-        hitbox.physicsImpostor.setAngularVelocity(new BABYLON.Vector3(wzx, wzy, wzz));
+        hitbox.physicsImpostor.setAngularVelocity(BABYLON.Vector3.Zero());
 
         return asteroid;
     }
 
     update() {
         let dt = this.scene.getEngine().getDeltaTime() / 1000;
-        
         dt = Math.min(dt, 0.1);
 
         if (this.isActive) {
@@ -172,19 +185,40 @@ class AsteroidManager {
         for (let i = this.active.length - 1; i >= 0; i--) {
             const asteroid = this.active[i];
             const hitbox = asteroid.metadata?.hitbox;
-            
+
             if (hitbox) {
-                // Sync visual asteroid with hitbox physics position and rotation
                 asteroid.position.copyFrom(hitbox.position);
-                asteroid.rotation.copyFrom(hitbox.rotation);
-                
+
+                const spinRates = asteroid.metadata.spinRates;
+                if (spinRates) {
+                    asteroid.rotation.x += spinRates.x * dt;
+                    asteroid.rotation.y += spinRates.y * dt;
+                    asteroid.rotation.z += spinRates.z * dt;
+                }
+
+                asteroid.metadata.lifeTime += dt;
+                const life = asteroid.metadata.lifeTime;
+
+                if (life > (this.maxLifetime - this.flickerDuration)) {
+                    const flickerProgress = (life - (this.maxLifetime - this.flickerDuration)) / this.flickerDuration;
+                    const fade = 1.0 - flickerProgress;
+                    const pulse = Math.cos(flickerProgress * Math.PI * 10) > 0 ? 1.0 : 0.0;
+                    const finalVisibility = fade * pulse;
+                    this._setAsteroidVisibility(asteroid, finalVisibility);
+                }
+
+                if (life > this.maxLifetime) {
+                    hitbox.position.y = this.deathZone - 1;
+                }
+
                 if (hitbox.position.y < this.deathZone) {
                     asteroid.setEnabled(false);
-                    
-                    // Reset velocities for pool reuse
+                    hitbox.setEnabled(false);
+
                     hitbox.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
                     hitbox.physicsImpostor.setAngularVelocity(BABYLON.Vector3.Zero());
-                    
+                    hitbox._collisionRegistered = false;
+
                     this.active.splice(i, 1);
                     this.pool.push(asteroid);
                 }
@@ -195,7 +229,6 @@ class AsteroidManager {
     cleanup() {
         this.active.forEach(asteroid => {
             asteroid.setEnabled(false);
-            
             const hitbox = asteroid.metadata?.hitbox;
             if (hitbox && hitbox.physicsImpostor) {
                 hitbox.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
