@@ -86,7 +86,11 @@ export function createShield(scene, rocketship, camera) {
         const visualMesh = shieldModel.clone('shield_visual');
         visualMesh.setEnabled(true);
         visualMesh.scaling.setAll(SHIELD_CONFIG.scale);
-        visualMesh.rotation = new BABYLON.Vector3(-20, 0, 0); // Ensure rotation starts at zero
+        visualMesh.rotation = new BABYLON.Vector3(
+            Math.random() * Math.PI * 2,
+            Math.random() * Math.PI * 2,
+            Math.random() * Math.PI * 2
+        );
         
         console.log('[SHIELD] Visual mesh created:', visualMesh.name, 'rotation:', visualMesh.rotation);
 
@@ -284,13 +288,8 @@ export function createShield(scene, rocketship, camera) {
                     return;
                 }
             }
-            
-            // Simple rotation - rotate the visual every frame
-            powerup.rotation.y += 0.03;
-            
-            if (Math.random() < 0.01) { // Log occasionally (1% of frames)
-                console.log('[SHIELD] Rotating, rotation.y:', powerup.rotation.y);
-            }
+          
+            powerup.rotation.z += 0.03;
         }
     });
 

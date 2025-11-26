@@ -1,16 +1,18 @@
 import * as BABYLON from '@babylonjs/core';
+import '@babylonjs/loaders/glTF';
 
 const HEALTH_BOOST_CONFIG = {
-    meshSize: 0.8,
+    scale: 0.5,
     spawnHeight: 20,
     spawnWidthRange: 10,
     fallSpeed: -4,
+    rotationSpeed: 2,
+    hitboxDiameter: 1,
     healAmount: 50,
     maxHealth: 100,
     despawnHeight: -5,
 
     color: {
-        diffuse: new BABYLON.Color3(1, 0, 0),
         emissive: new BABYLON.Color3(0.3, 0, 0)
     },
 
@@ -30,34 +32,89 @@ const HEALTH_BOOST_CONFIG = {
 
 export function createHealthBoost(scene, rocketship, healthManager, camera) {
     let powerup = null;
+    let healthBoostModel = null;
+    let isModelLoaded = false;
+
+    const loadHealthBoostModel = async () => {
+        try {
+            const result = await BABYLON.SceneLoader.ImportMeshAsync(
+                "",
+                "assets/blender-models/",
+                "heartpowerup1.glb",
+                scene
+            );
+
+            healthBoostModel = result.meshes[0];
+            healthBoostModel.name = "healthBoost_source";
+            healthBoostModel.setEnabled(false);
+
+            result.meshes.forEach(mesh => {
+                mesh.setEnabled(false);
+            });
+
+            isModelLoaded = true;
+        } catch (error) {
+            console.error("Failed to load health boost model:", error);
+        }
+    };
+
+    loadHealthBoostModel();
 
     const spawnPowerup = () => {
+        console.log('[HEALTH BOOST] spawnPowerup called, isModelLoaded:', isModelLoaded);
+        if (!isModelLoaded) return;
+        
         if (powerup) {
             powerup.dispose();
         }
 
-        powerup = BABYLON.MeshBuilder.CreateSphere('healthBoost', { diameter: HEALTH_BOOST_CONFIG.meshSize }, scene);
+        // Clone the health boost model
+        const visualMesh = healthBoostModel.clone('healthBoost_visual');
+        visualMesh.setEnabled(true);
+        visualMesh.scaling.setAll(HEALTH_BOOST_CONFIG.scale);
+        visualMesh.rotation = new BABYLON.Vector3(
+            Math.random() * Math.PI * 2,
+            Math.random() * Math.PI * 2,
+            Math.random() * Math.PI * 2
+        );
+        
+        console.log('[HEALTH BOOST] Visual mesh created:', visualMesh.name, 'rotation:', visualMesh.rotation);
 
-        const material = new BABYLON.StandardMaterial('healthBoostMat', scene);
-        material.diffuseColor = HEALTH_BOOST_CONFIG.color.diffuse;
-        material.emissiveColor = HEALTH_BOOST_CONFIG.color.emissive;
-        powerup.material = material;
+        healthBoostModel.getChildMeshes().forEach(childMesh => {
+            const clonedChild = childMesh.clone(childMesh.name + '_clone');
+            clonedChild.parent = visualMesh;
+            clonedChild.setEnabled(true);
+        });
+
+        const hitbox = BABYLON.MeshBuilder.CreateSphere(
+            "healthBoostHitbox",
+            { diameter: HEALTH_BOOST_CONFIG.hitboxDiameter },
+            scene
+        );
+        hitbox.isVisible = false;
 
         const spawnX = (Math.random() - 0.5) * HEALTH_BOOST_CONFIG.spawnWidthRange;
-        powerup.position.set(spawnX, HEALTH_BOOST_CONFIG.spawnHeight, 0);
+        visualMesh.position.set(spawnX, HEALTH_BOOST_CONFIG.spawnHeight, 0);
+        hitbox.position.copyFrom(visualMesh.position);
 
-        powerup.physicsImpostor = new BABYLON.PhysicsImpostor(
-            powerup,
+        hitbox.physicsImpostor = new BABYLON.PhysicsImpostor(
+            hitbox,
             BABYLON.PhysicsImpostor.SphereImpostor,
             HEALTH_BOOST_CONFIG.physics,
             scene
         );
 
-        powerup.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, HEALTH_BOOST_CONFIG.fallSpeed, 0));
+        hitbox.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, HEALTH_BOOST_CONFIG.fallSpeed, 0));
+
+        // Link visual to hitbox
+        visualMesh.physicsImpostor = hitbox.physicsImpostor;
+        visualMesh.metadata = { hitbox: hitbox };
+        
+        powerup = visualMesh;
 
         const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
 
-        collisionMesh.physicsImpostor.registerOnPhysicsCollide(powerup.physicsImpostor, () => {
+        collisionMesh.physicsImpostor.registerOnPhysicsCollide(hitbox.physicsImpostor, () => {
             if (powerup) {
                 const currentHealth = healthManager.getHealth();
                 const newHealth = Math.min(HEALTH_BOOST_CONFIG.maxHealth, currentHealth + HEALTH_BOOST_CONFIG.healAmount);
@@ -65,6 +122,10 @@ export function createHealthBoost(scene, rocketship, healthManager, camera) {
 
                 showHealPopup(newHealth - currentHealth, camera);
 
+                const hitboxToDispose = powerup.metadata?.hitbox;
+                if (hitboxToDispose) {
+                    hitboxToDispose.dispose();
+                }
                 powerup.dispose();
                 powerup = null;
             }
@@ -116,9 +177,24 @@ export function createHealthBoost(scene, rocketship, healthManager, camera) {
     };
 
     scene.registerBeforeRender(() => {
-        if (powerup && powerup.position.y < HEALTH_BOOST_CONFIG.despawnHeight) {
-            powerup.dispose();
-            powerup = null;
+        if (powerup) {
+            const hitbox = powerup.metadata?.hitbox;
+            
+            if (hitbox) {
+                // Sync position only
+                powerup.position.copyFrom(hitbox.position);
+                
+                // Despawn if too low
+                if (hitbox.position.y < HEALTH_BOOST_CONFIG.despawnHeight) {
+                    console.log('[HEALTH BOOST] Despawning at y:', hitbox.position.y);
+                    hitbox.dispose();
+                    powerup.dispose();
+                    powerup = null;
+                    return;
+                }
+            }
+            
+            powerup.rotation.y += 0.03;
         }
     });
 
