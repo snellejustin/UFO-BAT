@@ -16,11 +16,11 @@ const UFO_CONFIG = {
     rotationSpeed: 0.001
 };
 
-export const createUFO = async (scene, projectileManager) => {
+export const createUFO = async (scene, projectileManager, modelFilename = "ufoalien1.glb") => {
     const result = await BABYLON.SceneLoader.ImportMeshAsync(
         "",
         "assets/blender-models/",
-        "ufo.glb",
+        modelFilename,
         scene
     );
 
@@ -38,6 +38,31 @@ export const createUFO = async (scene, projectileManager) => {
 
     let isFlying = false;
     let flyingAnimation = null;
+    let currentUfo = ufo;
+    let currentUfoMeshes = ufoMeshes;
+
+    const loadNewModel = async (newModelFilename) => {
+        if (isFlying) return;
+
+        currentUfoMeshes.forEach(mesh => mesh.dispose());
+        currentUfo.dispose();
+
+        const newResult = await BABYLON.SceneLoader.ImportMeshAsync(
+            "",
+            "assets/blender-models/",
+            newModelFilename,
+            scene
+        );
+
+        currentUfo = newResult.meshes[0];
+        currentUfo.name = "ufo";
+        currentUfo.position.set(UFO_CONFIG.startPosition.x, UFO_CONFIG.startPosition.y, UFO_CONFIG.startPosition.z);
+
+        currentUfoMeshes = newResult.meshes.filter(mesh => mesh !== currentUfo);
+        currentUfoMeshes.forEach(mesh => {
+            mesh.rotation.x = BABYLON.Tools.ToRadians(UFO_CONFIG.rotation.default);
+        });
+    };
 
     const flyUFO = (onComplete, difficultyConfig = {}) => {
         if (isFlying) return;
@@ -52,7 +77,53 @@ export const createUFO = async (scene, projectileManager) => {
             totalShots: difficultyConfig.totalShots ?? UFO_CONFIG.totalShots,
             enterDuration: difficultyConfig.enterDuration ?? UFO_CONFIG.enterDuration,
             exitDuration: difficultyConfig.exitDuration ?? UFO_CONFIG.exitDuration,
-            projectileSpeed: difficultyConfig.projectileSpeed ?? -5
+            projectileSpeed: difficultyConfig.projectileSpeed ?? -5,
+            shootingPattern: difficultyConfig.shootingPattern ?? "single"
+        };
+
+        const shootProjectiles = (position, speed) => {
+            if (!projectileManager) return;
+
+            if (config.shootingPattern === "spread") {
+                const angle = 30;
+                const angleRad = BABYLON.Tools.ToRadians(angle);
+                
+                const leftVelocity = new BABYLON.Vector3(
+                    Math.sin(-angleRad) * Math.abs(speed),
+                    Math.cos(-angleRad) * speed,
+                    0
+                );
+                
+                const rightVelocity = new BABYLON.Vector3(
+                    Math.sin(angleRad) * Math.abs(speed),
+                    Math.cos(angleRad) * speed,
+                    0
+                );
+                
+                projectileManager.shootProjectile(position.clone(), speed, leftVelocity);
+                projectileManager.shootProjectile(position.clone(), speed, rightVelocity);
+            } else if (config.shootingPattern === "tripleSpread") {
+                const angle = 30;
+                const angleRad = BABYLON.Tools.ToRadians(angle);
+                
+                const leftVelocity = new BABYLON.Vector3(
+                    Math.sin(-angleRad) * Math.abs(speed),
+                    Math.cos(-angleRad) * speed,
+                    0
+                );
+                
+                const rightVelocity = new BABYLON.Vector3(
+                    Math.sin(angleRad) * Math.abs(speed),
+                    Math.cos(angleRad) * speed,
+                    0
+                );
+                
+                projectileManager.shootProjectile(position.clone(), speed, leftVelocity);
+                projectileManager.shootProjectile(position.clone(), speed);
+                projectileManager.shootProjectile(position.clone(), speed, rightVelocity);
+            } else {
+                projectileManager.shootProjectile(position, speed);
+            }
         };
 
         const generatePath = () => {
@@ -81,14 +152,16 @@ export const createUFO = async (scene, projectileManager) => {
             const sineWave = Math.sin(rotationTime * UFO_CONFIG.rotationSpeed);
             const rotationProgress = smoothStep((sineWave + 1) / 2);
             const rotationAngle = BABYLON.Scalar.Lerp(UFO_CONFIG.rotation.min, UFO_CONFIG.rotation.max, rotationProgress);
-            setUFORotation(rotationAngle);
+            currentUfoMeshes.forEach(mesh => {
+                mesh.rotation.x = BABYLON.Tools.ToRadians(rotationAngle);
+            });
 
             if (phase === 'entering') {
                 timeAtPoint += dt;
                 const progress = Math.min(timeAtPoint / config.enterDuration, 1);
                 const easedProgress = smoothStep(progress);
-                ufo.position.x = BABYLON.Scalar.Lerp(UFO_CONFIG.startPosition.x, path[0].x, easedProgress);
-                ufo.position.y = BABYLON.Scalar.Lerp(UFO_CONFIG.startPosition.y, path[0].y, easedProgress);
+                currentUfo.position.x = BABYLON.Scalar.Lerp(UFO_CONFIG.startPosition.x, path[0].x, easedProgress);
+                currentUfo.position.y = BABYLON.Scalar.Lerp(UFO_CONFIG.startPosition.y, path[0].y, easedProgress);
 
                 if (progress >= 1) {
                     phase = 'flying';
@@ -104,12 +177,12 @@ export const createUFO = async (scene, projectileManager) => {
                 const fromPoint = path[currentPointIndex - 1];
                 const toPoint = path[currentPointIndex];
 
-                ufo.position.x = BABYLON.Scalar.Lerp(fromPoint.x, toPoint.x, easedProgress);
-                ufo.position.y = BABYLON.Scalar.Lerp(fromPoint.y, toPoint.y, easedProgress);
+                currentUfo.position.x = BABYLON.Scalar.Lerp(fromPoint.x, toPoint.x, easedProgress);
+                currentUfo.position.y = BABYLON.Scalar.Lerp(fromPoint.y, toPoint.y, easedProgress);
 
                 if (progress >= 1) {
-                    if (projectileManager && shotsFired < config.totalShots && currentPointIndex <= config.pathPoints - 2) {
-                        projectileManager.shootProjectile(ufo.position.clone(), config.projectileSpeed);
+                    if (shotsFired < config.totalShots && currentPointIndex <= config.pathPoints - 2) {
+                        shootProjectiles(currentUfo.position.clone(), config.projectileSpeed);
                         shotsFired++;
                     }
 
@@ -127,16 +200,18 @@ export const createUFO = async (scene, projectileManager) => {
                 const easedProgress = smoothStep(progress);
 
                 const lastPoint = path[path.length - 1];
-                ufo.position.x = BABYLON.Scalar.Lerp(lastPoint.x, UFO_CONFIG.startPosition.x, easedProgress);
-                ufo.position.y = BABYLON.Scalar.Lerp(lastPoint.y, UFO_CONFIG.startPosition.y, easedProgress);
+                currentUfo.position.x = BABYLON.Scalar.Lerp(lastPoint.x, UFO_CONFIG.startPosition.x, easedProgress);
+                currentUfo.position.y = BABYLON.Scalar.Lerp(lastPoint.y, UFO_CONFIG.startPosition.y, easedProgress);
 
                 if (progress >= 1) {
                     scene.onBeforeRenderObservable.remove(flyingAnimation);
                     flyingAnimation = null;
                     isFlying = false;
 
-                    ufo.position.set(UFO_CONFIG.startPosition.x, UFO_CONFIG.startPosition.y, UFO_CONFIG.startPosition.z);
-                    setUFORotation(UFO_CONFIG.rotation.default);
+                    currentUfo.position.set(UFO_CONFIG.startPosition.x, UFO_CONFIG.startPosition.y, UFO_CONFIG.startPosition.z);
+                    currentUfoMeshes.forEach(mesh => {
+                        mesh.rotation.x = BABYLON.Tools.ToRadians(UFO_CONFIG.rotation.default);
+                    });
 
                     if (onComplete) {
                         onComplete();
@@ -147,8 +222,9 @@ export const createUFO = async (scene, projectileManager) => {
     };
 
     return {
-        mesh: ufo,
+        mesh: currentUfo,
         flyUFO,
+        loadNewModel,
         isFlying: () => isFlying
     };
 };

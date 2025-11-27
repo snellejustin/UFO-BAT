@@ -25,7 +25,7 @@ const shield = createShield(scene, spaceship, scene.activeCamera);
 const healthManager = createHealthManager(scene, spaceship, shield);
 const healthBoost = createHealthBoost(scene, spaceship, healthManager, scene.activeCamera);
 
-const levelManager = createLevelManager(asteroidSystem, ufo, healthBoost, shield);
+const levelManager = createLevelManager(asteroidSystem, ufo, healthBoost, shield, projectileManager);
 const countdown = createCountdown();
 const gameState = createPlayButton(countdown, levelManager);
 

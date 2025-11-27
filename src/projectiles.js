@@ -2,14 +2,30 @@ import * as BABYLON from '@babylonjs/core';
 
 export const createProjectileManager = (scene) => {
     const projectiles = [];
+    let currentConfig = {
+        size: 0.2,
+        color: { r: 0.063, g: 0.992, b: 0.847 },
+        glowIntensity: 1.0
+    };
 
-    const shootProjectile = (position, speed = -5) => {
-        const projectile = BABYLON.MeshBuilder.CreateSphere('projectile', { diameter: 0.2 }, scene);
+    const setProjectileConfig = (config) => {
+        if (config) {
+            currentConfig = {
+                size: config.size ?? 0.2,
+                color: config.color ?? { r: 0.063, g: 0.992, b: 0.847 },
+                glowIntensity: config.glowIntensity ?? 1.0
+            };
+        }
+    };
+
+    const shootProjectile = (position, speed = -5, velocityDirection = null) => {
+        const projectile = BABYLON.MeshBuilder.CreateSphere('projectile', { diameter: currentConfig.size }, scene);
         projectile.position.copyFrom(position);
 
         const material = new BABYLON.StandardMaterial('projectileMat', scene);
-        material.emissiveColor = new BABYLON.Color3(0.063, 0.992, 0.847);
-        material.diffuseColor = new BABYLON.Color3(0.063, 0.992, 0.847);
+        const color = new BABYLON.Color3(currentConfig.color.r, currentConfig.color.g, currentConfig.color.b);
+        material.emissiveColor = color.scale(currentConfig.glowIntensity);
+        material.diffuseColor = color;
         projectile.material = material;
 
         projectile.physicsImpostor = new BABYLON.PhysicsImpostor(
@@ -19,7 +35,11 @@ export const createProjectileManager = (scene) => {
             scene
         );
 
-        projectile.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, speed, 0));
+        if (velocityDirection) {
+            projectile.physicsImpostor.setLinearVelocity(velocityDirection);
+        } else {
+            projectile.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, speed, 0));
+        }
 
         projectiles.push({
             mesh: projectile,
@@ -73,6 +93,7 @@ export const createProjectileManager = (scene) => {
 
     return {
         shootProjectile,
+        setProjectileConfig,
         update,
         cleanup,
         getActiveProjectiles,

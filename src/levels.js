@@ -1,4 +1,4 @@
-export const createLevelManager = (asteroidSystem, ufo, healthBoost, shield) => {
+export const createLevelManager = (asteroidSystem, ufo, healthBoost, shield, projectileManager) => {
     let currentLevel = 0;
     let isWaveActive = false;
     let waveTimer = null;
@@ -9,12 +9,18 @@ export const createLevelManager = (asteroidSystem, ufo, healthBoost, shield) => 
             duration: 12000,
             asteroidSpeed: { min: 3, max: 6 },
             spawnRate: 1,
+            ufoModel: "ufoalien1.glb",
+            projectileConfig: {
+                size: 0.2,
+                color: { r: 0.063, g: 0.992, b: 0.847 },
+                glowIntensity: 1.0
+            },
             ufoConfig: {
-                pathPoints: 4,
-                pathXRange: { min: -6, max: 6 },
+                pathPoints: 5,
+                pathXRange: { min: -7, max: 7 },
                 pathYRange: { min: 5, max: 7 },
                 timePerPoint: 2500,
-                totalShots: 2,
+                totalShots: 3,
                 enterDuration: 2000,
                 exitDuration: 1000,
                 projectileSpeed: -4
@@ -25,12 +31,18 @@ export const createLevelManager = (asteroidSystem, ufo, healthBoost, shield) => 
             duration: 15000,
             asteroidSpeed: { min: 4, max: 8 },
             spawnRate: 1.3,
+            ufoModel: "ufoalien2.glb",
+            projectileConfig: {
+                size: 0.7,
+                color: { r: 0.6, g: 0.0, b: 1.0 },
+                glowIntensity: 1.2
+            },
             ufoConfig: {
-                pathPoints: 5,
+                pathPoints: 7,
                 pathXRange: { min: -7, max: 7 },
                 pathYRange: { min: 4.5, max: 7 },
                 timePerPoint: 2200,
-                totalShots: 3,
+                totalShots: 5,
                 enterDuration: 1800,
                 exitDuration: 1000,
                 projectileSpeed: -5
@@ -41,15 +53,22 @@ export const createLevelManager = (asteroidSystem, ufo, healthBoost, shield) => 
             duration: 18000,
             asteroidSpeed: { min: 5, max: 10 },
             spawnRate: 1.6,
+            ufoModel: "ufoalien3.glb",
+            projectileConfig: {
+                size: 0.2,
+                color: { r: 1.0, g: 0.4, b: 0.0 },
+                glowIntensity: 1.5
+            },
             ufoConfig: {
-                pathPoints: 6,
-                pathXRange: { min: -8, max: 8 },
+                pathPoints: 7,
+                pathXRange: { min: -7, max: 7 },
                 pathYRange: { min: 4, max: 7 },
                 timePerPoint: 2000,
-                totalShots: 4,
+                totalShots: 5,
                 enterDuration: 1600,
                 exitDuration: 900,
-                projectileSpeed: -6
+                projectileSpeed: -6,
+                shootingPattern: "spread"
             }
         },
         {
@@ -57,15 +76,22 @@ export const createLevelManager = (asteroidSystem, ufo, healthBoost, shield) => 
             duration: 20000,
             asteroidSpeed: { min: 6, max: 12 },
             spawnRate: 1.9,
+            ufoModel: "ufoalien4.glb",
+            projectileConfig: {
+                size: 0.2,
+                color: { r: 1.0, g: 1.0, b: 0.0 },
+                glowIntensity: 1.8
+            },
             ufoConfig: {
                 pathPoints: 7,
-                pathXRange: { min: -9, max: 9 },
+                pathXRange: { min: -7, max: 7 },
                 pathYRange: { min: 3.5, max: 7.5 },
                 timePerPoint: 1800,
                 totalShots: 5,
                 enterDuration: 1400,
                 exitDuration: 800,
-                projectileSpeed: -7
+                projectileSpeed: -7,
+                shootingPattern: "tripleSpread"
             }
         },
         {
@@ -73,9 +99,15 @@ export const createLevelManager = (asteroidSystem, ufo, healthBoost, shield) => 
             duration: 25000,
             asteroidSpeed: { min: 7, max: 15 },
             spawnRate: 2.2,
+            ufoModel: "ufoalienboss.glb",
+            projectileConfig: {
+                size: 1,
+                color: { r: 0.0, g: 0.1, b: 0.5 },
+                glowIntensity: 2.0
+            },
             ufoConfig: {
                 pathPoints: 8,
-                pathXRange: { min: -10, max: 10 },
+                pathXRange: { min: -7, max: 7 },
                 pathYRange: { min: 3, max: 8 },
                 timePerPoint: 1600,
                 totalShots: 6,
@@ -121,7 +153,7 @@ export const createLevelManager = (asteroidSystem, ufo, healthBoost, shield) => 
         return levelOverlay;
     };
 
-    const startWave = (levelIndex) => {
+    const startWave = async (levelIndex) => {
         if (levelIndex >= levels.length) {
             return false;
         }
@@ -129,6 +161,14 @@ export const createLevelManager = (asteroidSystem, ufo, healthBoost, shield) => 
         currentLevel = levelIndex;
         const levelConfig = levels[currentLevel];
         isWaveActive = true;
+
+        if (ufo.loadNewModel && levelConfig.ufoModel) {
+            await ufo.loadNewModel(levelConfig.ufoModel);
+        }
+
+        if (projectileManager && projectileManager.setProjectileConfig && levelConfig.projectileConfig) {
+            projectileManager.setProjectileConfig(levelConfig.projectileConfig);
+        }
 
         const levelOverlay = showLevelAnnouncement(levelConfig.level, () => {
             asteroidSystem.manager.isActive = true;
