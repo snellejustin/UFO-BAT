@@ -78,7 +78,7 @@ export function createHealthBoost(scene, rocketship, healthManager, camera) {
             Math.random() * Math.PI * 2
         );
         
-        console.log('[HEALTH BOOST] Visual mesh created:', visualMesh.name, 'rotation:', visualMesh.rotation);
+        // console.log('[HEALTH BOOST] Visual mesh created:', visualMesh.name, 'rotation:', visualMesh.rotation);
 
         healthBoostModel.getChildMeshes().forEach(childMesh => {
             const clonedChild = childMesh.clone(childMesh.name + '_clone');

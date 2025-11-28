@@ -10,33 +10,64 @@ import { createUFO } from './ufo.js';
 import { createProjectileManager } from './projectiles.js';
 import { createHealthBoost } from './powerups/health-boost.js';
 import { createShield } from './powerups/shield.js';
+import { createRocketShooter } from './powerups/rocketshooter.js';
+import * as BABYLON from '@babylonjs/core';
 
-const canvas = document.getElementById('renderCanvas');
-const engine = createEngine(canvas);
-const scene = createScene(engine);
+const initGame = async () => {
+  const canvas = document.getElementById('renderCanvas');
+  const engine = createEngine(canvas);
 
-const asteroidSystem = createAsteroidManager(scene);
-const projectileManager = createProjectileManager(scene);
+  engine.displayLoadingUI();
 
-const spaceship = await createRocketship(scene);
-const ufo = await createUFO(scene, projectileManager);
+  const scene = createScene(engine);
 
-const shield = createShield(scene, spaceship, scene.activeCamera);
-const healthManager = createHealthManager(scene, spaceship, shield);
-const healthBoost = createHealthBoost(scene, spaceship, healthManager, scene.activeCamera);
+  const asteroidSystem = createAsteroidManager(scene);
+  const projectileManager = createProjectileManager(scene);
+  const countdown = createCountdown(scene);
 
-const levelManager = createLevelManager(asteroidSystem, ufo, healthBoost, shield, projectileManager);
-const countdown = createCountdown();
-const gameState = createPlayButton(countdown, levelManager);
+  //ufo en rocket tegelijk laden
+  const [spaceship, ufo] = await Promise.all([
+    createRocketship(scene),
+    createUFO(scene, projectileManager)
+  ]);
 
-disableCameraArrowKeys(scene);
-const inputMap = setupArrowKeys();
-setupRocketshipPhysics(scene, spaceship, inputMap);
+  const shield = createShield(scene, spaceship, scene.activeCamera);
+  const healthManager = createHealthManager(scene, spaceship, shield);
+  const healthBoost = createHealthBoost(scene, spaceship, healthManager, scene.activeCamera);
+  const rocketShooter = createRocketShooter(scene, spaceship, scene.activeCamera);
 
-healthManager.setupCollisionListener(asteroidSystem.manager, scene.activeCamera);
-healthManager.setupProjectileCollisionListener(projectileManager, scene.activeCamera);
+  const levelManager = createLevelManager(
+    scene,
+    asteroidSystem,
+    ufo,
+    healthBoost,
+    shield,
+    projectileManager,
+    rocketShooter
+  );
 
-startRenderLoop(engine, scene, () => {
-    asteroidSystem.update();
-    projectileManager.update();
-});
+  disableCameraArrowKeys(scene);
+  const inputWrapper = setupArrowKeys();
+  setupRocketshipPhysics(scene, spaceship, inputWrapper);
+
+  healthManager.setupCollisionListener(asteroidSystem.manager, scene.activeCamera);
+  healthManager.setupProjectileCollisionListener(projectileManager, scene.activeCamera);
+
+  //loading screen weg en ui zichtbaar
+  engine.hideLoadingUI();
+  const uiState = createPlayButton(countdown, levelManager);
+
+  startRenderLoop(engine, scene, () => {
+    if (uiState.isPlaying) {
+      asteroidSystem.update();
+      projectileManager.update();
+
+      // If your powerups have update loops (rotation), call them here too
+      // if (shield.update) shield.update();
+      // if (rocketShooter.update) rocketShooter.update();
+    }
+  });
+};
+
+// Start the game
+initGame().catch(console.error);

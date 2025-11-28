@@ -2,12 +2,12 @@ import * as BABYLON from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
 
 const SHIELD_CONFIG = {
-    scale: 0.5, // Scale down the model
+    scale: 0.5,
     spawnHeight: 20,
     spawnWidthRange: 10,
     fallSpeed: -4,
-    rotationSpeed: 2, // Radians per second
-    hitboxDiameter: 1, // Sphere hitbox size
+    rotationSpeed: 2,
+    hitboxDiameter: 1,
     duration: 10000,
     flickerInterval: 200,
     despawnHeight: -5,
@@ -48,7 +48,6 @@ export function createShield(scene, rocketship, camera) {
     let timerInterval = null;
     let shieldEndTime = 0;
 
-    // Load shield model
     const loadShieldModel = async () => {
         try {
             const result = await BABYLON.SceneLoader.ImportMeshAsync(
@@ -82,7 +81,7 @@ export function createShield(scene, rocketship, camera) {
             powerup.dispose();
         }
 
-        // Clone the shield model
+        //clone the shield model
         const visualMesh = shieldModel.clone('shield_visual');
         visualMesh.setEnabled(true);
         visualMesh.scaling.setAll(SHIELD_CONFIG.scale);
@@ -92,7 +91,7 @@ export function createShield(scene, rocketship, camera) {
             Math.random() * Math.PI * 2
         );
         
-        console.log('[SHIELD] Visual mesh created:', visualMesh.name, 'rotation:', visualMesh.rotation);
+        // console.log('[SHIELD] Visual mesh created:', visualMesh.name, 'rotation:', visualMesh.rotation);
 
         shieldModel.getChildMeshes().forEach(childMesh => {
             const clonedChild = childMesh.clone(childMesh.name + '_clone');
@@ -100,7 +99,7 @@ export function createShield(scene, rocketship, camera) {
             clonedChild.setEnabled(true);
         });
 
-        // Create separate invisible hitbox sphere for physics (like asteroids)
+        //invisible hitbox zoals bij asteroids
         const hitbox = BABYLON.MeshBuilder.CreateSphere(
             "shieldHitbox",
             { diameter: SHIELD_CONFIG.hitboxDiameter },
@@ -121,7 +120,7 @@ export function createShield(scene, rocketship, camera) {
 
         hitbox.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, SHIELD_CONFIG.fallSpeed, 0));
 
-        // Link visual to hitbox
+        //visual en hitbox linken
         visualMesh.physicsImpostor = hitbox.physicsImpostor;
         visualMesh.metadata = { hitbox: hitbox };
         
@@ -276,12 +275,11 @@ export function createShield(scene, rocketship, camera) {
             const hitbox = powerup.metadata?.hitbox;
             
             if (hitbox) {
-                // Sync position only
                 powerup.position.copyFrom(hitbox.position);
                 
-                // Despawn if too low
+                //despawn deathzone
                 if (hitbox.position.y < SHIELD_CONFIG.despawnHeight) {
-                    console.log('[SHIELD] Despawning at y:', hitbox.position.y);
+                    // console.log('[SHIELD] Despawning at y:', hitbox.position.y);
                     hitbox.dispose();
                     powerup.dispose();
                     powerup = null;

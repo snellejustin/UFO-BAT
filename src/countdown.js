@@ -1,43 +1,63 @@
-export const createCountdown = () => {
-    const countdownOverlay = document.createElement('div');
-    countdownOverlay.id = 'countdown-overlay';
-    countdownOverlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        display: none;
-        justify-content: center;
-        align-items: center;
-        pointer-events: none;
-        z-index: 2000;
-    `;
-    document.body.appendChild(countdownOverlay);
+import * as BABYLON from "@babylonjs/core";
+import * as GUI from "@babylonjs/gui";
 
-    const countdownNumber = document.createElement('div');
-    countdownNumber.id = 'countdown-number';
-    countdownNumber.style.cssText = `
-        font-size: 120px;
-        font-weight: bold;
-        color: #00ff00;
-        text-shadow: 0 0 40px rgba(0, 255, 0, 1);
-        font-family: 'Arial', sans-serif;
-    `;
-    countdownOverlay.appendChild(countdownNumber);
-    
+export const createCountdown = (scene) => {
+    const advancedTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("CountdownUI", true, scene);
+
+    const countText = new GUI.TextBlock();
+    countText.text = "";
+    countText.color = "#00ff00"; // Neon Green
+    countText.fontSize = 120;
+    countText.fontFamily = "Arial, sans-serif";
+    countText.fontWeight = "bold";
+    countText.shadowColor = "#00ff00";
+    countText.shadowBlur = 40;
+    countText.isVisible = false;
+    advancedTexture.addControl(countText);
+
+    const animatePop = () => {
+        const frameRate = 60;
+        const scaleAnim = new BABYLON.Animation(
+            "countPop",
+            "scaleX",
+            frameRate,
+            BABYLON.Animation.ANIMATIONTYPE_FLOAT,
+            BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+        );
+
+        const keys = [
+            { frame: 0, value: 0.5 },
+            { frame: 10, value: 1.2 }, //kleine overshoot
+            { frame: 20, value: 1.0 } 
+        ];
+
+        scaleAnim.setKeys(keys);
+
+        scene.beginDirectAnimation(countText, [scaleAnim], 0, 20, false);
+
+        // const fontSizeAnim = new BABYLON.Animation("fontPop", "fontSize", 60, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+        // fontSizeAnim.setKeys([{ frame: 0, value: 60 }, { frame: 10, value: 140 }, { frame: 20, value: 120 }]);
+        // scene.beginDirectAnimation(countText, [fontSizeAnim], 0, 20, false);
+    };
+
     const startCountdown = (onComplete) => {
         let count = 3;
-        countdownOverlay.style.display = 'flex';
-        countdownNumber.textContent = count;
+        countText.text = count.toString();
+        countText.isVisible = true;
 
-        const countdownInterval = setInterval(() => {
+        //soundeffect komt hier nog
+        animatePop();
+
+        const timerId = setInterval(() => {
             count--;
+
             if (count > 0) {
-                countdownNumber.textContent = count;
+                countText.text = count.toString();
+                animatePop();
             } else {
-                clearInterval(countdownInterval);
-                countdownOverlay.style.display = 'none';
+                clearInterval(timerId);
+                countText.isVisible = false; // Hide UI
+
                 if (onComplete) {
                     onComplete();
                 }
@@ -46,6 +66,12 @@ export const createCountdown = () => {
     };
 
     return {
-        startCountdown
+        startCountdown,
+        //opkuisen
+        dispose: () => {
+            if (advancedTexture) {
+                advancedTexture.dispose();
+            }
+        }
     };
 };

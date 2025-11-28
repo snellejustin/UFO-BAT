@@ -1,197 +1,190 @@
 import * as BABYLON from '@babylonjs/core';
+import * as GUI from '@babylonjs/gui';
 
 export function createHealthManager(scene, rocketship, shieldManager) {
   let health = 100;
   const maxHealth = 100;
-  let lastDamageTime = {};
-  const damageCooldown = 500;
+  const damageCooldown = 500; // ms
+  const lastDamageTime = new Map();
 
-  const barWidth = 1.5;
-  const yPosition = 1.2;
+  const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("HealthUI", true, scene);
 
-  const bgPoints = [
-    new BABYLON.Vector3(-barWidth / 2, yPosition, 0),
-    new BABYLON.Vector3(barWidth / 2, yPosition, 0)
-  ];
-  const bgLine = BABYLON.MeshBuilder.CreateLines('healthBarBg', { points: bgPoints }, scene);
-  bgLine.color = new BABYLON.Color3(0.3, 0.3, 0.3);
-  bgLine.parent = rocketship;
-  bgLine.renderingGroupId = 1;
+  const healthBarContainer = new GUI.Rectangle("healthBarContainer");
+  healthBarContainer.width = "120px";
+  healthBarContainer.height = "14px";
+  healthBarContainer.cornerRadius = 2;
+  healthBarContainer.color = "black"; // Border color
+  healthBarContainer.thickness = 1;
+  healthBarContainer.background = "#404040"; // Dark Grey Background
 
-  let healthLine = null;
+  guiTexture.addControl(healthBarContainer);
 
-  function updateHealthBar() {
-    if (healthLine) {
-      healthLine.dispose();
-    }
+  //zweven bij rocket
+  healthBarContainer.linkWithMesh(rocketship);
+  healthBarContainer.linkOffsetY = -80; 
 
-    let barColor;
-    const healthPercent = (health / maxHealth) * 100;
-    if (healthPercent > 66) barColor = new BABYLON.Color3(0, 1, 0);
-    else if (healthPercent > 33) barColor = new BABYLON.Color3(1, 1, 0);
-    else barColor = new BABYLON.Color3(1, 0, 0);
+  const healthBarInner = new GUI.Rectangle("healthBarInner");
+  healthBarInner.width = 1;
+  healthBarInner.height = "100%";
+  healthBarInner.cornerRadius = 2;
+  healthBarInner.thickness = 0;
+  healthBarInner.background = "#00ff00";
+  healthBarInner.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
 
-    const healthWidth = (health / maxHealth) * barWidth;
-    const healthPoints = [
-      new BABYLON.Vector3(-barWidth / 2, yPosition, 0),
-      new BABYLON.Vector3(-barWidth / 2 + healthWidth, yPosition, 0)
-    ];
-    healthLine = BABYLON.MeshBuilder.CreateLines('healthBar', { points: healthPoints }, scene);
-    healthLine.color = barColor;
-    healthLine.parent = rocketship;
-    healthLine.renderingGroupId = 1;
-  }
+  healthBarContainer.addControl(healthBarInner);
 
-  function flashRocketship() {
-    if (!rocketship.material) {
-      rocketship.material = new BABYLON.StandardMaterial('rocketshipMaterial', scene);
-      rocketship.material.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.8);
-      rocketship.material.emissiveColor = new BABYLON.Color3(0, 0, 0);
-    }
-    
-    const originalColor = rocketship.material.emissiveColor.clone();
-    rocketship.material.emissiveColor = new BABYLON.Color3(1, 0, 0);
+  const updateHealthBar = () => {
+    const healthPercent = Math.max(0, health / maxHealth);
+    healthBarInner.width = healthPercent; //GUI supports float (0.0 to 1.0) for percentage
+
+    if (healthPercent > 0.6) healthBarInner.background = "#00ff00"; 
+    else if (healthPercent > 0.3) healthBarInner.background = "#ffff00"; 
+    else healthBarInner.background = "#ff0000";
+  };
+
+  const flashRocketship = () => {
+    if (!rocketship.material) return;
+
+    const oldColor = rocketship.material.emissiveColor ? rocketship.material.emissiveColor.clone() : new BABYLON.Color3(0, 0, 0);
+
+    if (!rocketship.material.emissiveColor) rocketship.material.emissiveColor = new BABYLON.Color3(0, 0, 0);
+    rocketship.material.emissiveColor.set(1, 0, 0);
+
     setTimeout(() => {
-      rocketship.material.emissiveColor = originalColor;
+      if (rocketship.material) {
+        rocketship.material.emissiveColor.copyFrom(oldColor);
+      }
     }, 100);
-  }
+  };
 
-  function shakeCamera(camera) {
-    const originalPosition = camera.position.clone();
-    const shakeIntensity = 0.3;
-    const shakeDuration = 150;
-    const shakeFrequency = 10;
+  const shakeCamera = (camera) => {
+    if (camera.metadata && camera.metadata.isShaking) return;
+
+    camera.metadata = { ...camera.metadata, isShaking: true };
+    const originalPos = camera.position.clone();
 
     let elapsed = 0;
-    const shakeInterval = setInterval(() => {
-      elapsed += shakeFrequency;
-      const randomX = (Math.random() - 0.5) * shakeIntensity;
-      const randomY = (Math.random() - 0.5) * shakeIntensity;
+    const duration = 200;
 
-      camera.position.x = originalPosition.x + randomX;
-      camera.position.y = originalPosition.y + randomY;
-
-      if (elapsed >= shakeDuration) {
-        clearInterval(shakeInterval);
-        camera.position = originalPosition;
+    const observer = scene.onBeforeRenderObservable.add(() => {
+      elapsed += scene.getEngine().getDeltaTime();
+      if (elapsed < duration) {
+        const intensity = 0.3 * (1 - elapsed / duration);
+        camera.position.x = originalPos.x + (Math.random() - 0.5) * intensity;
+        camera.position.y = originalPos.y + (Math.random() - 0.5) * intensity;
+      } else {
+        camera.position.copyFrom(originalPos);
+        camera.metadata.isShaking = false;
+        scene.onBeforeRenderObservable.remove(observer);
       }
-    }, shakeFrequency);
-  }
+    });
+  };
 
-  function showDamagePopup(damageAmount, camera) {
-    const healthBarWorldPos = new BABYLON.Vector3(
-      rocketship.position.x,
-      rocketship.position.y + 1.2,
-      rocketship.position.z
-    );
-    
-    const engine = scene.getEngine();
-    const screenPos = BABYLON.Vector3.Project(
-      healthBarWorldPos,
-      BABYLON.Matrix.Identity(),
-      scene.getTransformMatrix(),
-      camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight())
-    );
+  const showDamagePopup = (damageAmount) => {
+    const textBlock = new GUI.TextBlock();
+    textBlock.text = `-${damageAmount}`;
+    textBlock.color = "#ff3333";
+    textBlock.fontSize = 28;
+    textBlock.fontWeight = "bold";
 
-    const popup = document.createElement('div');
-    popup.textContent = `- ${damageAmount}`;
-    popup.style.cssText = `
-      position: fixed;
-      left: ${screenPos.x}px;
-      top: ${screenPos.y - 30}px;
-      transform: translate(-50%, -100%);
-      font-size: 32px;
-      font-weight: bold;
-      color: #FF0000;
-      text-shadow: 0 0 10px #FF0000, 0 0 20px #FF0000;
-      pointer-events: none;
-      z-index: 1000;
-    `;
-    document.body.appendChild(popup);
+    textBlock.outlineWidth = 3;
+    textBlock.outlineColor = "black";
 
-    let yOffset = 0;
-    const animationInterval = setInterval(() => {
-      yOffset += 2;
-      popup.style.top = `${screenPos.y - 30 - yOffset}px`;
-      popup.style.opacity = `${1 - yOffset / 60}`;
-    }, 16);
+    guiTexture.addControl(textBlock);
 
-    setTimeout(() => {
-      clearInterval(animationInterval);
-      popup.remove();
-    }, 1000);
-  }
+    textBlock.linkWithMesh(rocketship);
+    textBlock.linkOffsetY = -100;
 
-  function playDamageEffect(camera, damageAmount) {
-    flashRocketship();
-    shakeCamera(camera);
-    showDamagePopup(damageAmount, camera);
-    updateHealthBar();
-  }
+    //animate floating up text
+    let elapsed = 0;
+    const duration = 1000;
 
-  function takeDamage(damage, camera) {
+    const observer = scene.onBeforeRenderObservable.add(() => {
+      elapsed += scene.getEngine().getDeltaTime();
+      const progress = elapsed / duration;
+
+      textBlock.linkOffsetY = -100 - (progress * 80);
+      textBlock.alpha = 1 - progress;
+
+      if (progress >= 1) {
+        guiTexture.removeControl(textBlock);
+        textBlock.dispose();
+        scene.onBeforeRenderObservable.remove(observer);
+      }
+    });
+  };
+
+  const takeDamage = (damage, camera) => {
     if (shieldManager && shieldManager.isShieldActive()) {
       return;
     }
+
     health = Math.max(0, health - damage);
-    playDamageEffect(camera, damage);
-  }
+    updateHealthBar();
+    flashRocketship();
+    if (camera) shakeCamera(camera);
+    showDamagePopup(damage);
+  };
 
-  function setupCollisionListener(asteroidManager, camera) {
+  const setupCollisionListener = (asteroidManager, camera) => {
     const impostor = rocketship.physicsImpostor;
-    
-    if (!impostor) {
-      return;
-    }
+    if (!impostor) return;
 
-    scene.registerBeforeRender(() => {
-      asteroidManager.active.forEach((asteroid) => {
-        const hitbox = asteroid.metadata?.hitbox;
-        if (!hitbox || !hitbox.physicsImpostor) return;
-        
-        if (!hitbox._collisionRegistered) {
-          hitbox._collisionRegistered = true;
-          
-          impostor.registerOnPhysicsCollide(hitbox.physicsImpostor, () => {
-            const key = asteroid.uniqueId;
-            const now = Date.now();
+    const onCollide = (collider, collidedAgainst) => {
+      const asteroidMesh = collidedAgainst.object;
+      const key = asteroidMesh.uniqueId;
+      const now = Date.now();
 
-            if (!lastDamageTime[key] || now - lastDamageTime[key] > damageCooldown) {
-              const damage = Math.ceil(asteroid.scaling.x * 10);
-              takeDamage(damage, camera);
-              lastDamageTime[key] = now;
-            }
-          });
-        }
-      });
+      if (!lastDamageTime.has(key) || now - lastDamageTime.get(key) > damageCooldown) {
+        const damage = Math.ceil((asteroidMesh.scaling.x || 1) * 10);
+        takeDamage(damage, camera);
+        lastDamageTime.set(key, now);
+      }
+    };
+
+    const observer = scene.onBeforeRenderObservable.add(() => {
+      //enkel active asteroids checken
+      if (asteroidManager.active) {
+        asteroidManager.active.forEach((asteroid) => {
+          const hitbox = asteroid.metadata?.hitbox;
+          if (!hitbox || !hitbox.physicsImpostor) return;
+
+          if (!hitbox._collisionRegistered) {
+            hitbox._collisionRegistered = true;
+            impostor.registerOnPhysicsCollide(hitbox.physicsImpostor, onCollide);
+          }
+        });
+      }
     });
-  }
+  };
 
-  function setupProjectileCollisionListener(projectileManager, camera) {
+  const setupProjectileCollisionListener = (projectileManager, camera) => {
     const impostor = rocketship.physicsImpostor;
-    
-    if (!impostor) {
-      return;
-    }
+    if (!impostor) return;
 
-    scene.registerBeforeRender(() => {
-      projectileManager.projectiles.forEach((proj) => {
-        if (!proj.active || !proj.mesh.physicsImpostor) return;
+    const onProjectileCollide = (collider, collidedAgainst) => {
+      const projMesh = collidedAgainst.object;
+      //enkel bullet die actief is
+      if (projMesh.isEnabled()) {
+        takeDamage(30, camera);
+        projectileManager.removeProjectile(projMesh);
+      }
+    };
 
-        if (!proj._collisionRegistered) {
-          proj._collisionRegistered = true;
-          
-          impostor.registerOnPhysicsCollide(proj.mesh.physicsImpostor, () => {
-            if (proj.active) {
-              takeDamage(30, camera);
-              projectileManager.removeProjectile(proj.mesh);
+    const observer = scene.onBeforeRenderObservable.add(() => {
+      if (projectileManager.projectiles) {
+        projectileManager.projectiles.forEach((proj) => {
+          //enkel bullet die actief is
+          if (proj.active && proj.mesh.physicsImpostor) {
+            if (!proj._collisionRegistered) {
+              proj._collisionRegistered = true;
+              impostor.registerOnPhysicsCollide(proj.mesh.physicsImpostor, onProjectileCollide);
             }
-          });
-        }
-      });
+          }
+        });
+      }
     });
-  }
-
+  };
   updateHealthBar();
 
   return {
@@ -203,5 +196,8 @@ export function createHealthManager(scene, rocketship, shieldManager) {
       health = Math.max(0, Math.min(value, maxHealth));
       updateHealthBar();
     },
+    dispose: () => {
+      if (guiTexture) guiTexture.dispose();
+    }
   };
 }

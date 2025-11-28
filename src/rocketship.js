@@ -6,45 +6,40 @@ import { sensorData } from './witmotion.js';
 
 export const setupArrowKeys = () => {
     const inputMap = {};
-    window.addEventListener("keydown", (e) => { inputMap[e.key] = true; });
-    window.addEventListener("keyup", (e) => { inputMap[e.key] = false; });
-    return inputMap;
+
+    const onKeyDown = (e) => { inputMap[e.key] = true; };
+    const onKeyUp = (e) => { inputMap[e.key] = false; };
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+
+    return {
+        inputMap,
+        dispose: () => {
+            window.removeEventListener("keydown", onKeyDown);
+            window.removeEventListener("keyup", onKeyUp);
+        }
+    };
 };
 
 export const createRocketship = async (scene) => {
-    const visualResult = await BABYLON.SceneLoader.ImportMeshAsync(
-        "",
-        "assets/blender-models/",
-        "rocket2.glb",
-        scene
-    );
-
-    const collisionResult = await BABYLON.SceneLoader.ImportMeshAsync(
-        "",
-        "assets/blender-models/",
-        "rockethitbox3.glb",
-        scene
-    );
+    const [visualResult, collisionResult] = await Promise.all([
+        BABYLON.SceneLoader.ImportMeshAsync("", "assets/blender-models/", "rocket2.glb", scene),
+        BABYLON.SceneLoader.ImportMeshAsync("", "assets/blender-models/", "rockethitbox3.glb", scene)
+    ]);
 
     const spaceship = visualResult.meshes[0];
     spaceship.name = "spaceship";
     spaceship.position.y = 1.3;
 
     const collisionMeshes = collisionResult.meshes.filter(m => m.getTotalVertices() > 0);
-    const mergedCollision = BABYLON.Mesh.MergeMeshes(
-        collisionMeshes,
-        true,
-        true,
-        undefined,
-        false,
-        false
-    );
-    
+    const mergedCollision = BABYLON.Mesh.MergeMeshes(collisionMeshes, true, true, undefined, false, false);
+
     if (mergedCollision) {
         mergedCollision.name = "spaceshipHitbox";
         mergedCollision.isVisible = false;
         mergedCollision.position.copyFrom(spaceship.position);
-        
+
         mergedCollision.physicsImpostor = new BABYLON.PhysicsImpostor(
             mergedCollision,
             BABYLON.PhysicsImpostor.MeshImpostor,
@@ -54,63 +49,58 @@ export const createRocketship = async (scene) => {
 
         const body = mergedCollision.physicsImpostor.physicsBody;
         if (body) {
-            body.linearDamping = 0.05;
-            body.angularDamping = 0.05;
+            body.linearDamping = 0.5;
+            body.angularDamping = 1.0; 
+            //locking X-as
             body.linearFactor = new CANNON.Vec3(1, 0, 0);
+            //locking rotation
             body.angularFactor = new CANNON.Vec3(0, 0, 0);
+            //rotation vastzetten zodat rocket ni omver kletst
+            body.fixedRotation = true;
+            body.updateMassProperties();
         }
 
         spaceship.physicsImpostor = mergedCollision.physicsImpostor;
-        spaceship.metadata = { 
-            baseY: spaceship.position.y,
+        spaceship.metadata = {
             collisionMesh: mergedCollision
         };
     }
 
     const particleSystem = new BABYLON.ParticleSystem("thruster", 400, scene);
-    
     particleSystem.particleTexture = new BABYLON.Texture("https://assets.babylonjs.com/textures/flare.png", scene);
-    
+
     particleSystem.emitter = spaceship;
     particleSystem.minEmitBox = new BABYLON.Vector3(-0.2, 0, 0);
     particleSystem.maxEmitBox = new BABYLON.Vector3(0.2, 0, 0);
- 
     particleSystem.color1 = new BABYLON.Color4(1, 0.4, 0.4, 1);
     particleSystem.color2 = new BABYLON.Color4(0.7, 0.2, 0, 1);
     particleSystem.colorDead = new BABYLON.Color4(0.7, 0.7, 0, 0);
-    
     particleSystem.minSize = 0.4;
     particleSystem.maxSize = 0.8;
-    
     particleSystem.minLifeTime = 0.2;
     particleSystem.maxLifeTime = 0.4;
-
     particleSystem.emitRate = 150;
-
     particleSystem.direction1 = new BABYLON.Vector3(-0.5, -3, 0);
     particleSystem.direction2 = new BABYLON.Vector3(0.5, -3, 0);
- 
     particleSystem.minEmitPower = 1;
     particleSystem.maxEmitPower = 2;
-
     particleSystem.start();
-    
+
     spaceship.metadata.particleSystem = particleSystem;
 
     return spaceship;
 };
 
-export const setupRocketshipPhysics = (scene, spaceship, inputMap) => {
+export const setupRocketshipPhysics = (scene, spaceship, inputWrapper) => {
     let ctrlVX = 0;
+
     const maxSpeedCtrl = 14.0;
-    const accelCtrl = 0.08;
+    const accelCtrl = 0.18;
     const decelCtrl = 0.92;
     const steerBlendActive = 0.25;
     const steerBlendIdle = 0.08;
-
-    // SENSOR SETTINGS
-    const maxSensorTilt = 30; //30° = Max Speed.
-    const deadZone = 2;       //Ignore tiny shakes.
+    const maxSensorTilt = 30;
+    const deadZone = 0.5;
 
     const canvas = scene.getEngine().getRenderingCanvas();
     const screenWidth = canvas.clientWidth;
@@ -118,8 +108,8 @@ export const setupRocketshipPhysics = (scene, spaceship, inputMap) => {
     const xMax = (screenWidth / 2) * unitsPerPixel;
     const xMin = -xMax;
 
-    const maxTilt = BABYLON.Angle.FromDegrees(90).radians();
-    const tiltSmoothness = 0.22;
+    const _tmpVelocity = new BABYLON.Vector3();
+    const _newVelocityVector = new BABYLON.Vector3();
 
     const physicsObserver = scene.onBeforeRenderObservable.add(() => {
         const imp = spaceship.physicsImpostor;
@@ -127,29 +117,29 @@ export const setupRocketshipPhysics = (scene, spaceship, inputMap) => {
 
         const collisionMesh = spaceship.metadata.collisionMesh;
         const pos = collisionMesh ? collisionMesh.position : spaceship.position;
-        const vel = imp.getLinearVelocity() || BABYLON.Vector3.Zero();
+
+        const currentVel = imp.getLinearVelocity();
+        if (currentVel) {
+            _tmpVelocity.copyFrom(currentVel);
+        } else {
+            _tmpVelocity.setAll(0);
+        }
 
         if (collisionMesh) {
             spaceship.position.copyFrom(collisionMesh.position);
         }
 
-        //inputs
-        //keyboard
-        const left = inputMap["ArrowLeft"] ? 1 : 0;
-        const right = inputMap["ArrowRight"] ? 1 : 0;
+        const left = inputWrapper.inputMap["ArrowLeft"] ? 1 : 0;
+        const right = inputWrapper.inputMap["ArrowRight"] ? 1 : 0;
         let input = right - left;
-
-        //override with sensor
+        //sensor override keyboard
         if (sensorData.isConnected) {
             let roll = sensorData.roll;
             if (Math.abs(roll) < deadZone) roll = 0;
-
-            //clamping for max speed above 90 degrees (which we will never do lol)
             input = BABYLON.Scalar.Clamp(roll / maxSensorTilt, -1, 1);
         }
-
-        //physics
-
+        
+        //velocity etc
         if (input !== 0) {
             ctrlVX += input * accelCtrl * maxSpeedCtrl;
         } else {
@@ -158,27 +148,28 @@ export const setupRocketshipPhysics = (scene, spaceship, inputMap) => {
         ctrlVX = BABYLON.Scalar.Clamp(ctrlVX, -maxSpeedCtrl, maxSpeedCtrl);
 
         const blend = input !== 0 ? steerBlendActive : steerBlendIdle;
-        const newVX = BABYLON.Scalar.Lerp(vel.x, ctrlVX, blend);
-        imp.setLinearVelocity(new BABYLON.Vector3(newVX, vel.y, 0));
+        const newVX = BABYLON.Scalar.Lerp(_tmpVelocity.x, ctrlVX, blend);
 
-        // Soft bounds on X
+        //bounds
+        let finalVX = newVX;
+
         if (pos.x < xMin) {
             spaceship.position.x = xMin;
-            if (newVX < 0) imp.setLinearVelocity(new BABYLON.Vector3(0, vel.y, 0));
+            collisionMesh.position.x = xMin;
+            if (finalVX < 0) finalVX = 0; //stop naar links gaan
         } else if (pos.x > xMax) {
             spaceship.position.x = xMax;
-            if (newVX > 0) imp.setLinearVelocity(new BABYLON.Vector3(0, vel.y, 0));
+            collisionMesh.position.x = xMax;
+            if (finalVX > 0) finalVX = 0; //stop naar rechts gaan
         }
 
-        // Pin Y
-        const baseY = spaceship.metadata?.baseY ?? 1.3;
-        const body = imp.physicsBody;
-        body.velocity.y = 0;
-        body.position.y = baseY;
-        spaceship.position.y = baseY;
+        _newVelocityVector.set(finalVX, 0, 0);
+        imp.setLinearVelocity(_newVelocityVector);
     });
 
     return {
-        cleanup: () => scene.onBeforeRenderObservable.remove(physicsObserver),
+        cleanup: () => {
+            scene.onBeforeRenderObservable.remove(physicsObserver);
+        },
     };
 };
