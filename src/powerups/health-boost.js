@@ -34,6 +34,7 @@ export function createHealthBoost(scene, rocketship, healthManager, camera) {
     let powerup = null;
     let healthBoostModel = null;
     let isModelLoaded = false;
+    let updateObserver = null; // Track observer for cleanup
 
     const loadHealthBoostModel = async () => {
         try {
@@ -60,7 +61,29 @@ export function createHealthBoost(scene, rocketship, healthManager, camera) {
 
     loadHealthBoostModel();
 
-    const spawnPowerup = () => {
+    // Helper function to check if position is safe (no asteroids nearby)
+    const isSafeSpawnPosition = (x, asteroidSystem) => {
+        if (!asteroidSystem?.manager?.active) return true;
+        
+        const minSafeDistance = 3; // Minimum distance from asteroids
+        
+        for (const asteroid of asteroidSystem.manager.active) {
+            const asteroidX = asteroid.position.x;
+            const asteroidY = asteroid.position.y;
+            
+            // Check if asteroid is near spawn height and X position
+            if (asteroidY > HEALTH_BOOST_CONFIG.spawnHeight - 3 && 
+                asteroidY < HEALTH_BOOST_CONFIG.spawnHeight + 3) {
+                const distance = Math.abs(asteroidX - x);
+                if (distance < minSafeDistance) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    };
+
+    const spawnPowerup = (asteroidSystem = null) => {
         console.log('[HEALTH BOOST] spawnPowerup called, isModelLoaded:', isModelLoaded);
         if (!isModelLoaded) return;
         
@@ -93,7 +116,16 @@ export function createHealthBoost(scene, rocketship, healthManager, camera) {
         );
         hitbox.isVisible = false;
 
-        const spawnX = (Math.random() - 0.5) * HEALTH_BOOST_CONFIG.spawnWidthRange;
+        // Try to find a safe spawn position (max 10 attempts)
+        let spawnX = 0;
+        let attempts = 0;
+        const maxAttempts = 10;
+        
+        do {
+            spawnX = (Math.random() - 0.5) * HEALTH_BOOST_CONFIG.spawnWidthRange;
+            attempts++;
+        } while (!isSafeSpawnPosition(spawnX, asteroidSystem) && attempts < maxAttempts);
+        
         visualMesh.position.set(spawnX, HEALTH_BOOST_CONFIG.spawnHeight, 0);
         hitbox.position.copyFrom(visualMesh.position);
 
@@ -176,7 +208,12 @@ export function createHealthBoost(scene, rocketship, healthManager, camera) {
         }, HEALTH_BOOST_CONFIG.popup.duration);
     };
 
-    scene.registerBeforeRender(() => {
+    // Clean up old observer if it exists
+    if (updateObserver) {
+        scene.onBeforeRenderObservable.remove(updateObserver);
+    }
+
+    updateObserver = scene.onBeforeRenderObservable.add(() => {
         if (powerup) {
             const hitbox = powerup.metadata?.hitbox;
             
@@ -199,6 +236,18 @@ export function createHealthBoost(scene, rocketship, healthManager, camera) {
     });
 
     return {
-        spawnPowerup
+        spawnPowerup,
+        cleanup: () => {
+            if (updateObserver) {
+                scene.onBeforeRenderObservable.remove(updateObserver);
+                updateObserver = null;
+            }
+            if (powerup) {
+                const hitboxToDispose = powerup.metadata?.hitbox;
+                if (hitboxToDispose) hitboxToDispose.dispose();
+                powerup.dispose();
+                powerup = null;
+            }
+        }
     };
 }

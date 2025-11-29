@@ -236,14 +236,34 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
             asteroidSystem.manager.speedMin = levelConfig.asteroidSpeed.min;
             asteroidSystem.manager.speedMax = levelConfig.asteroidSpeed.max;
 
-            if (healthBoost) {
-                const delay = Math.random() * (levelConfig.duration - 3000);
-                safeTimeout(() => healthBoost.spawnPowerup(), delay);
-            }
+            // Schedule powerups with guaranteed spacing to avoid double spawns
+            const powerups = [];
+            if (healthBoost) powerups.push(healthBoost);
+            if (shield) powerups.push(shield);
 
-            if (shield) {
-                const delay = Math.random() * (levelConfig.duration - 3000);
-                safeTimeout(() => shield.spawnPowerup(), delay);
+            if (powerups.length > 0) {
+                // Divide the level duration into segments for each powerup
+                const minSpacing = 2000; // Minimum 2 seconds between powerups
+                const safeWindow = levelConfig.duration - 3000;
+                
+                powerups.forEach((powerup, index) => {
+                    // Generate delays ensuring they don't overlap
+                    let delay;
+                    if (powerups.length === 1) {
+                        delay = Math.random() * safeWindow;
+                    } else {
+                        // Split timeline into segments with spacing
+                        const segmentSize = safeWindow / powerups.length;
+                        delay = (segmentSize * index) + (Math.random() * (segmentSize - minSpacing));
+                    }
+                    
+                    safeTimeout(() => {
+                        // Pass asteroid system to check for collisions
+                        if (powerup.spawnPowerup) {
+                            powerup.spawnPowerup(asteroidSystem);
+                        }
+                    }, delay);
+                });
             }
 
             safeTimeout(() => endWave(), levelConfig.duration);

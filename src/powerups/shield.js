@@ -47,6 +47,7 @@ export function createShield(scene, rocketship, camera) {
     let timerElement = null;
     let timerInterval = null;
     let shieldEndTime = 0;
+    let updateObserver = null; // Track observer for cleanup
 
     const loadShieldModel = async () => {
         try {
@@ -73,7 +74,29 @@ export function createShield(scene, rocketship, camera) {
 
     loadShieldModel();
 
-    const spawnPowerup = () => {
+    // Helper function to check if position is safe (no asteroids nearby)
+    const isSafeSpawnPosition = (x, asteroidSystem) => {
+        if (!asteroidSystem?.manager?.active) return true;
+        
+        const minSafeDistance = 3; // Minimum distance from asteroids
+        
+        for (const asteroid of asteroidSystem.manager.active) {
+            const asteroidX = asteroid.position.x;
+            const asteroidY = asteroid.position.y;
+            
+            // Check if asteroid is near spawn height and X position
+            if (asteroidY > SHIELD_CONFIG.spawnHeight - 3 && 
+                asteroidY < SHIELD_CONFIG.spawnHeight + 3) {
+                const distance = Math.abs(asteroidX - x);
+                if (distance < minSafeDistance) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    };
+
+    const spawnPowerup = (asteroidSystem = null) => {
         console.log('[SHIELD] spawnPowerup called, isModelLoaded:', isModelLoaded);
         if (!isModelLoaded) return;
         
@@ -107,7 +130,16 @@ export function createShield(scene, rocketship, camera) {
         );
         hitbox.isVisible = false;
 
-        const spawnX = (Math.random() - 0.5) * SHIELD_CONFIG.spawnWidthRange;
+        // Try to find a safe spawn position (max 10 attempts)
+        let spawnX = 0;
+        let attempts = 0;
+        const maxAttempts = 10;
+        
+        do {
+            spawnX = (Math.random() - 0.5) * SHIELD_CONFIG.spawnWidthRange;
+            attempts++;
+        } while (!isSafeSpawnPosition(spawnX, asteroidSystem) && attempts < maxAttempts);
+        
         visualMesh.position.set(spawnX, SHIELD_CONFIG.spawnHeight, 0);
         hitbox.position.copyFrom(visualMesh.position);
 
@@ -270,7 +302,12 @@ export function createShield(scene, rocketship, camera) {
         }, SHIELD_CONFIG.popup.duration);
     };
 
-    scene.registerBeforeRender(() => {
+    // Clean up old observer if it exists
+    if (updateObserver) {
+        scene.onBeforeRenderObservable.remove(updateObserver);
+    }
+
+    updateObserver = scene.onBeforeRenderObservable.add(() => {
         if (powerup) {
             const hitbox = powerup.metadata?.hitbox;
             
@@ -293,6 +330,22 @@ export function createShield(scene, rocketship, camera) {
 
     return {
         spawnPowerup,
-        isShieldActive: () => isShieldActive
+        isShieldActive: () => isShieldActive,
+        cleanup: () => {
+            if (updateObserver) {
+                scene.onBeforeRenderObservable.remove(updateObserver);
+                updateObserver = null;
+            }
+            if (shieldTimeout) clearTimeout(shieldTimeout);
+            if (flickerInterval) clearInterval(flickerInterval);
+            if (timerInterval) clearInterval(timerInterval);
+            if (timerElement) timerElement.remove();
+            if (powerup) {
+                const hitboxToDispose = powerup.metadata?.hitbox;
+                if (hitboxToDispose) hitboxToDispose.dispose();
+                powerup.dispose();
+                powerup = null;
+            }
+        }
     };
 }

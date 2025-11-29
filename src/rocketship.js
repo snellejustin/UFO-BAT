@@ -50,14 +50,14 @@ export const createRocketship = async (scene) => {
         const body = mergedCollision.physicsImpostor.physicsBody;
         if (body) {
             body.linearDamping = 0.5;
-            body.angularDamping = 1.0; 
-            //locking X-as
+            body.angularDamping = 1.0;
             body.linearFactor = new CANNON.Vec3(1, 0, 0);
-            //locking rotation
             body.angularFactor = new CANNON.Vec3(0, 0, 0);
-            //rotation vastzetten zodat rocket ni omver kletst
             body.fixedRotation = true;
             body.updateMassProperties();
+
+            // body.collisionFilterGroup = 1;
+            // body.collisionFilterMask = 2 | 4 | 8;
         }
 
         spaceship.physicsImpostor = mergedCollision.physicsImpostor;
@@ -92,22 +92,42 @@ export const createRocketship = async (scene) => {
 };
 
 export const setupRocketshipPhysics = (scene, spaceship, inputWrapper) => {
-    let ctrlVX = 0;
+    const maxSpeed = 20.0;
+    const accelRate = 0.20;
+    const brakeRate = 0.30; 
 
-    const maxSpeedCtrl = 14.0;
-    const accelCtrl = 0.18;
-    const decelCtrl = 0.92;
-    const steerBlendActive = 0.25;
-    const steerBlendIdle = 0.08;
     const maxSensorTilt = 30;
     const deadZone = 0.5;
 
-    const canvas = scene.getEngine().getRenderingCanvas();
-    const screenWidth = canvas.clientWidth;
-    const unitsPerPixel = 0.016;
-    const xMax = (screenWidth / 2) * unitsPerPixel;
-    const xMin = -xMax;
+    const shipHalfWidth = 1.0;
 
+    let xMax = 0;
+    let xMin = 0;
+
+    const calculateScreenBoundary = () => {
+        const engine = scene.getEngine();
+        const camera = scene.activeCamera;
+
+        const ray = scene.createPickingRay(
+            engine.getRenderWidth(),
+            engine.getRenderHeight() / 2,
+            BABYLON.Matrix.Identity(),
+            camera
+        );
+
+        const distanceToPlane = (0 - ray.origin.z) / ray.direction.z;
+        const hitPoint = ray.origin.add(ray.direction.scale(distanceToPlane));
+
+        xMax = Math.abs(hitPoint.x) - shipHalfWidth;
+        xMin = -xMax;
+    };
+
+    calculateScreenBoundary();
+    const resizeObserver = scene.getEngine().onResizeObservable.add(() => {
+        calculateScreenBoundary();
+    });
+
+    // Reusable vectors
     const _tmpVelocity = new BABYLON.Vector3();
     const _newVelocityVector = new BABYLON.Vector3();
 
@@ -118,6 +138,7 @@ export const setupRocketshipPhysics = (scene, spaceship, inputWrapper) => {
         const collisionMesh = spaceship.metadata.collisionMesh;
         const pos = collisionMesh ? collisionMesh.position : spaceship.position;
 
+        // Get Current Velocity
         const currentVel = imp.getLinearVelocity();
         if (currentVel) {
             _tmpVelocity.copyFrom(currentVel);
@@ -132,37 +153,35 @@ export const setupRocketshipPhysics = (scene, spaceship, inputWrapper) => {
         const left = inputWrapper.inputMap["ArrowLeft"] ? 1 : 0;
         const right = inputWrapper.inputMap["ArrowRight"] ? 1 : 0;
         let input = right - left;
-        //sensor override keyboard
+
         if (sensorData.isConnected) {
             let roll = sensorData.roll;
             if (Math.abs(roll) < deadZone) roll = 0;
             input = BABYLON.Scalar.Clamp(roll / maxSensorTilt, -1, 1);
         }
-        
-        //velocity etc
-        if (input !== 0) {
-            ctrlVX += input * accelCtrl * maxSpeedCtrl;
-        } else {
-            ctrlVX *= decelCtrl;
+
+        const targetVX = input * maxSpeed;
+        const lerpFactor = (Math.abs(input) > 0.01) ? accelRate : brakeRate;
+
+        let finalVX = BABYLON.Scalar.Lerp(_tmpVelocity.x, targetVX, lerpFactor);
+
+        if (Math.abs(input) < 0.01 && Math.abs(finalVX) < 0.1) {
+            finalVX = 0;
         }
-        ctrlVX = BABYLON.Scalar.Clamp(ctrlVX, -maxSpeedCtrl, maxSpeedCtrl);
 
-        const blend = input !== 0 ? steerBlendActive : steerBlendIdle;
-        const newVX = BABYLON.Scalar.Lerp(_tmpVelocity.x, ctrlVX, blend);
-
-        //bounds
-        let finalVX = newVX;
-
-        if (pos.x < xMin) {
-            spaceship.position.x = xMin;
-            collisionMesh.position.x = xMin;
-            if (finalVX < 0) finalVX = 0; //stop naar links gaan
-        } else if (pos.x > xMax) {
+        //boundary check
+        if (pos.x > xMax) {
             spaceship.position.x = xMax;
-            collisionMesh.position.x = xMax;
-            if (finalVX > 0) finalVX = 0; //stop naar rechts gaan
+            if (collisionMesh) collisionMesh.position.x = xMax;
+            if (finalVX > 0) finalVX = 0;
+        }
+        else if (pos.x < xMin) {
+            spaceship.position.x = xMin;
+            if (collisionMesh) collisionMesh.position.x = xMin;
+            if (finalVX < 0) finalVX = 0;
         }
 
+        //apply
         _newVelocityVector.set(finalVX, 0, 0);
         imp.setLinearVelocity(_newVelocityVector);
     });
@@ -170,6 +189,7 @@ export const setupRocketshipPhysics = (scene, spaceship, inputWrapper) => {
     return {
         cleanup: () => {
             scene.onBeforeRenderObservable.remove(physicsObserver);
+            scene.getEngine().onResizeObservable.remove(resizeObserver);
         },
     };
 };

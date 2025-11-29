@@ -4,6 +4,7 @@ export const createRocketShooter = (scene, rocketship, camera) => {
     let activePowerup = null;
     let isActive = false;
     let onCollectedCallback = null;
+    let updateObserver = null; // Track observer for cleanup
 
     const spawnPowerup = (onCollected) => {
         if (activePowerup) return;
@@ -37,7 +38,12 @@ export const createRocketShooter = (scene, rocketship, camera) => {
             }
         });
 
-        scene.registerBeforeRender(() => {
+        // Clean up old observer if exists
+        if (updateObserver) {
+            scene.onBeforeRenderObservable.remove(updateObserver);
+        }
+
+        updateObserver = scene.onBeforeRenderObservable.add(() => {
             if (!activePowerup) return;
 
             if (activePowerup.position.y <= 2 && activePowerup.physicsImpostor) {
@@ -118,6 +124,10 @@ export const createRocketShooter = (scene, rocketship, camera) => {
     };
 
     const cleanup = () => {
+        if (updateObserver) {
+            scene.onBeforeRenderObservable.remove(updateObserver);
+            updateObserver = null;
+        }
         if (activePowerup) {
             if (activePowerup.physicsImpostor) {
                 activePowerup.physicsImpostor.dispose();

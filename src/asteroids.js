@@ -6,6 +6,7 @@ import '@babylonjs/loaders/glTF';
 //paralax met meerdere hitboxes of shadertoy
 //level progressbar instead of text
 //testen of het blijft runnen zonder bugs
+//github repo ai naartoe sturen
 
 const TMP_ZERO = new BABYLON.Vector3(0, 0, 0);
 const TMP_VELOCITY = new BABYLON.Vector3(0, 0, 0);
