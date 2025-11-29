@@ -1,5 +1,9 @@
 import * as BABYLON from '@babylonjs/core';
 
+const COL_GROUP_PROJECTILE = 8;
+const COL_MASK_ACTIVE = 1 | 2;  //hits player and asteroids
+const COL_MASK_INACTIVE = 0;    //ghost mode
+
 export const createProjectileManager = (scene) => {
     //pool voor bullets te recyclen
     const poolSize = 50;
@@ -43,13 +47,23 @@ export const createProjectileManager = (scene) => {
         mesh.isVisible = false;
         mesh.setEnabled(false);
 
-        //physiques
         mesh.physicsImpostor = new BABYLON.PhysicsImpostor(
             mesh,
             BABYLON.PhysicsImpostor.SphereImpostor,
             { mass: 0.5, restitution: 0.3, friction: 0.1 },
             scene
         );
+
+        const body = mesh.physicsImpostor.physicsBody;
+        if (body) {
+            body.collisionFilterGroup = COL_GROUP_PROJECTILE;
+            body.collisionFilterMask = COL_MASK_INACTIVE;
+        }
+
+        mesh.physicsImpostor.sleep();
+
+        mesh.position.set(0, -1000, 0);
+        mesh.physicsImpostor.forceUpdate();
 
         return { mesh, active: false };
     };
