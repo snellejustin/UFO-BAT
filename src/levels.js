@@ -1,7 +1,7 @@
 import * as GUI from "@babylonjs/gui";
 import { Animation } from "@babylonjs/core";
 
-export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shield, projectileManager, rocketShooter) => {
+export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shield, projectileManager, rocketShooter, levelProgressBar) => {
     let currentLevelIndex = 0;
     let isWaveActive = false;
     let activeTimers = []; 
@@ -218,6 +218,11 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
         currentLevelIndex = levelIndex;
         const levelConfig = levels[currentLevelIndex];
         isWaveActive = true;
+
+        // Update level progress bar
+        if (levelProgressBar) {
+            levelProgressBar.updateProgress(currentLevelIndex + 1);
+        }
 
         //for boss levels, don't set model yet (wait for rocket shooter pickup)
         const isBossLevel = levelConfig.hasBossEvent;

@@ -73,6 +73,81 @@ export const createHealthBarUI = (scene) => {
     };
 };
 
+export const createLevelProgressBar = (scene, totalLevels = 5) => {
+    const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("LevelProgressUI", true, scene);
+
+    // Progress bar background (vertical bar on the right side)
+    const progressBarBg = new GUI.Rectangle("progressBarBg");
+    progressBarBg.width = "30px";
+    progressBarBg.height = "400px";
+    progressBarBg.cornerRadius = 15;
+    progressBarBg.color = "white";
+    progressBarBg.thickness = 3;
+    progressBarBg.background = "#202020";
+    progressBarBg.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+    progressBarBg.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+    progressBarBg.left = "-30px"; // 30px from right edge
+    progressBarBg.top = "0px";
+    guiTexture.addControl(progressBarBg);
+
+    // Progress fill (grows from bottom to top)
+    const progressFill = new GUI.Rectangle("progressFill");
+    progressFill.width = "100%";
+    progressFill.height = "0%"; // Start at 0%
+    progressFill.cornerRadius = 15;
+    progressFill.thickness = 0;
+    progressFill.background = "#00ff00";
+    progressFill.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+    progressBarBg.addControl(progressFill);
+
+    // Create checkpoints (circles)
+    const checkpoints = [];
+    const checkpointSpacing = 400 / (totalLevels + 1); // Evenly space checkpoints
+
+    for (let i = 0; i < totalLevels; i++) {
+        const checkpoint = new GUI.Ellipse(`checkpoint${i}`);
+        checkpoint.width = "20px";
+        checkpoint.height = "20px";
+        checkpoint.color = "white";
+        checkpoint.thickness = 3;
+        checkpoint.background = "#404040"; // Uncompleted color
+        checkpoint.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+        checkpoint.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+        // Position from bottom to top (first checkpoint at bottom)
+        checkpoint.top = `-${checkpointSpacing * (i + 1) - 10}px`; // Negative for bottom alignment
+        
+        progressBarBg.addControl(checkpoint);
+        checkpoints.push(checkpoint);
+    }
+
+    return {
+        guiTexture,
+        progressFill,
+        checkpoints,
+        updateProgress: (currentLevel) => {
+            // Update progress fill height
+            const progressPercent = (currentLevel / totalLevels) * 100;
+            progressFill.height = `${progressPercent}%`;
+
+            // Update checkpoint colors
+            checkpoints.forEach((checkpoint, index) => {
+                if (index < currentLevel) {
+                    // Completed checkpoint
+                    checkpoint.background = "#00ff00";
+                    checkpoint.color = "#00ff00";
+                } else {
+                    // Not yet completed
+                    checkpoint.background = "#404040";
+                    checkpoint.color = "white";
+                }
+            });
+        },
+        dispose: () => {
+            if (guiTexture) guiTexture.dispose();
+        }
+    };
+};
+
 export const createPlayButton = (countdown, levelManager) => {
     const gameState = {
         isPlaying: false,

@@ -2,7 +2,7 @@ import { createScene, disableCameraArrowKeys } from './scene.js';
 import { createRocketship, setupRocketshipPhysics, setupArrowKeys } from './rocketship.js';
 import { createEngine, startRenderLoop } from './engine.js';
 import { createAsteroidManager } from './asteroids.js';
-import { createPlayButton } from './ui.js';
+import { createPlayButton, createLevelProgressBar } from './ui.js';
 import { createHealthManager } from './health.js';
 import { createCountdown } from './countdown.js';
 import { createLevelManager } from './levels.js';
@@ -40,6 +40,9 @@ const initGame = async () => {
   const healthBoost = createHealthBoost(scene, spaceship, healthManager, scene.activeCamera);
   const rocketShooter = createRocketShooter(scene, spaceship, scene.activeCamera, projectileManager);
 
+  // Create level progress bar
+  const levelProgressBar = createLevelProgressBar(scene, 5);
+
   const levelManager = createLevelManager(
     scene,
     asteroidSystem,
@@ -47,7 +50,8 @@ const initGame = async () => {
     healthBoost,
     shield,
     projectileManager,
-    rocketShooter
+    rocketShooter,
+    levelProgressBar
   );
 
   disableCameraArrowKeys(scene);
