@@ -11,92 +11,92 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
    
 
     const levels = [
-        // {
-        //     level: 1,
-        //     duration: 12000,
-        //     asteroidSpeed: { min: 3, max: 6 },
-        //     spawnRate: 0.5,
-        //     ufoModel: "ufoalien1.glb",
-        //     projectileConfig: { 
-        //         size: 0.2, 
-        //         color: { r: 0.063, g: 0.992, b: 0.847 }, 
-        //         glowIntensity: 1.0 },
-        //     ufoConfig: {
-        //         pathPoints: 5,
-        //         pathXRange: { min: -7, max: 7 },
-        //         pathYRange: { min: 5, max: 7 },
-        //         timePerPoint: 2500, 
-        //         totalShots: 3, 
-        //         enterDuration: 2000, 
-        //         exitDuration: 1000, 
-        //         projectileSpeed: -4
-        //     }
-        // },
-        // {
-        //     level: 2,
-        //     duration: 15000,
-        //     asteroidSpeed: { min: 4, max: 8 },
-        //     spawnRate: 0.7,
-        //     ufoModel: "ufoalien2.glb",
-        //     projectileConfig: { 
-        //         size: 0.7, 
-        //         color: { r: 0.6, g: 0.0, b: 1.0 }, 
-        //         glowIntensity: 1.2 },
-        //     ufoConfig: {
-        //         pathPoints: 7, 
-        //         pathXRange: { min: -7, max: 7 }, 
-        //         pathYRange: { min: 4.5, max: 7 },
-        //         timePerPoint: 2200, 
-        //         totalShots: 5, 
-        //         enterDuration: 1800, 
-        //         exitDuration: 1000, 
-        //         projectileSpeed: -5
-        //     }
-        // },
-        // {
-        //     level: 3,
-        //     duration: 18000,
-        //     asteroidSpeed: { min: 5, max: 10 },
-        //     spawnRate: 1,
-        //     ufoModel: "ufoalien3.glb",
-        //     projectileConfig: { 
-        //         size: 0.2, 
-        //         color: { r: 1.0, g: 0.4, b: 0.0 },
-        //         glowIntensity: 1.5 },
-        //     ufoConfig: {
-        //         pathPoints: 7, 
-        //         pathXRange: { min: -7, max: 7 }, 
-        //         pathYRange: { min: 4, max: 7 },
-        //         timePerPoint: 2000, 
-        //         totalShots: 5, 
-        //         enterDuration: 1600, 
-        //         exitDuration: 900, 
-        //         projectileSpeed: -6, 
-        //         shootingPattern: "spread"
-        //     }
-        // },
-        // {
-        //     level: 4,
-        //     duration: 20000,
-        //     asteroidSpeed: { min: 6, max: 12 },
-        //     spawnRate: 1.2,
-        //     ufoModel: "ufoalien4.glb",
-        //     projectileConfig: { 
-        //         size: 0.2, 
-        //         color: { r: 1.0, g: 1.0, b: 0.0 }, 
-        //         glowIntensity: 1.8 },
-        //     ufoConfig: {
-        //         pathPoints: 7, 
-        //         pathXRange: { min: -7, max: 7 },
-        //         pathYRange: { min: 3.5, max: 7.5 },
-        //         timePerPoint: 1800,
-        //         totalShots: 5, 
-        //         enterDuration: 1400, 
-        //         exitDuration: 800, 
-        //         projectileSpeed: -7, 
-        //         shootingPattern: "tripleSpread"
-        //     },
-        // },
+        {
+            level: 1,
+            duration: 12000,
+            asteroidSpeed: { min: 3, max: 6 },
+            spawnRate: 0.5,
+            ufoModel: "ufoalien1.glb",
+            projectileConfig: { 
+                size: 0.2, 
+                color: { r: 0.063, g: 0.992, b: 0.847 }, 
+                glowIntensity: 1.0 },
+            ufoConfig: {
+                pathPoints: 5,
+                pathXRange: { min: -7, max: 7 },
+                pathYRange: { min: 5, max: 7 },
+                timePerPoint: 2500, 
+                totalShots: 3, 
+                enterDuration: 2000, 
+                exitDuration: 1000, 
+                projectileSpeed: -4
+            }
+        },
+        {
+            level: 2,
+            duration: 15000,
+            asteroidSpeed: { min: 4, max: 8 },
+            spawnRate: 0.7,
+            ufoModel: "ufoalien2.glb",
+            projectileConfig: { 
+                size: 0.7, 
+                color: { r: 0.6, g: 0.0, b: 1.0 }, 
+                glowIntensity: 1.2 },
+            ufoConfig: {
+                pathPoints: 7, 
+                pathXRange: { min: -7, max: 7 }, 
+                pathYRange: { min: 4.5, max: 7 },
+                timePerPoint: 2200, 
+                totalShots: 5, 
+                enterDuration: 1800, 
+                exitDuration: 1000, 
+                projectileSpeed: -5
+            }
+        },
+        {
+            level: 3,
+            duration: 18000,
+            asteroidSpeed: { min: 5, max: 10 },
+            spawnRate: 1,
+            ufoModel: "ufoalien3.glb",
+            projectileConfig: { 
+                size: 0.2, 
+                color: { r: 1.0, g: 0.4, b: 0.0 },
+                glowIntensity: 1.5 },
+            ufoConfig: {
+                pathPoints: 7, 
+                pathXRange: { min: -7, max: 7 }, 
+                pathYRange: { min: 4, max: 7 },
+                timePerPoint: 2000, 
+                totalShots: 5, 
+                enterDuration: 1600, 
+                exitDuration: 900, 
+                projectileSpeed: -6, 
+                shootingPattern: "spread"
+            }
+        },
+        {
+            level: 4,
+            duration: 20000,
+            asteroidSpeed: { min: 6, max: 12 },
+            spawnRate: 1.2,
+            ufoModel: "ufoalien4.glb",
+            projectileConfig: { 
+                size: 0.2, 
+                color: { r: 1.0, g: 1.0, b: 0.0 }, 
+                glowIntensity: 1.8 },
+            ufoConfig: {
+                pathPoints: 7, 
+                pathXRange: { min: -7, max: 7 },
+                pathYRange: { min: 3.5, max: 7.5 },
+                timePerPoint: 1800,
+                totalShots: 5, 
+                enterDuration: 1400, 
+                exitDuration: 800, 
+                projectileSpeed: -7, 
+                shootingPattern: "tripleSpread"
+            },
+        },
         {
             level: 5,
             duration: 25000,

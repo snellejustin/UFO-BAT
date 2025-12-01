@@ -1,5 +1,6 @@
 import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
+import { createHealthBarUI } from './ui.js';
 
 export function createHealthManager(scene, rocketship, shieldManager) {
   let health = 100;
@@ -7,39 +8,11 @@ export function createHealthManager(scene, rocketship, shieldManager) {
   const damageCooldown = 500; // ms
   const lastDamageTime = new Map();
 
-  const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("HealthUI", true, scene);
-
-  const healthBarContainer = new GUI.Rectangle("healthBarContainer");
-  healthBarContainer.width = "120px";
-  healthBarContainer.height = "14px";
-  healthBarContainer.cornerRadius = 2;
-  healthBarContainer.color = "black"; // Border color
-  healthBarContainer.thickness = 1;
-  healthBarContainer.background = "#404040"; // Dark Grey Background
-
-  guiTexture.addControl(healthBarContainer);
-
-  //zweven bij rocket
-  healthBarContainer.linkWithMesh(rocketship);
-  healthBarContainer.linkOffsetY = -80; 
-
-  const healthBarInner = new GUI.Rectangle("healthBarInner");
-  healthBarInner.width = 1;
-  healthBarInner.height = "100%";
-  healthBarInner.cornerRadius = 2;
-  healthBarInner.thickness = 0;
-  healthBarInner.background = "#00ff00";
-  healthBarInner.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-
-  healthBarContainer.addControl(healthBarInner);
+  const healthBarUI = createHealthBarUI(scene);
 
   const updateHealthBar = () => {
     const healthPercent = Math.max(0, health / maxHealth);
-    healthBarInner.width = healthPercent; //GUI supports float (0.0 to 1.0) for percentage
-
-    if (healthPercent > 0.6) healthBarInner.background = "#00ff00"; 
-    else if (healthPercent > 0.3) healthBarInner.background = "#ffff00"; 
-    else healthBarInner.background = "#ff0000";
+    healthBarUI.updateHealthBar(healthPercent);
   };
 
   const flashRocketship = () => {
@@ -90,7 +63,7 @@ export function createHealthManager(scene, rocketship, shieldManager) {
     textBlock.outlineWidth = 3;
     textBlock.outlineColor = "black";
 
-    guiTexture.addControl(textBlock);
+    healthBarUI.guiTexture.addControl(textBlock);
 
     textBlock.linkWithMesh(rocketship);
     textBlock.linkOffsetY = -100;
@@ -107,7 +80,7 @@ export function createHealthManager(scene, rocketship, shieldManager) {
       textBlock.alpha = 1 - progress;
 
       if (progress >= 1) {
-        guiTexture.removeControl(textBlock);
+        healthBarUI.guiTexture.removeControl(textBlock);
         textBlock.dispose();
         scene.onBeforeRenderObservable.remove(observer);
       }
@@ -197,7 +170,7 @@ export function createHealthManager(scene, rocketship, shieldManager) {
       updateHealthBar();
     },
     dispose: () => {
-      if (guiTexture) guiTexture.dispose();
+      if (healthBarUI) healthBarUI.dispose();
     }
   };
 }
