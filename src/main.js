@@ -11,6 +11,7 @@ import { createProjectileManager } from './projectiles.js';
 import { createHealthBoost } from './powerups/health-boost.js';
 import { createShield } from './powerups/shield.js';
 import { createRocketShooter } from './powerups/rocketshooter.js';
+// import { createBackground } from './background.js'; // <--- DISABLED
 import * as BABYLON from '@babylonjs/core';
 
 const initGame = async () => {
@@ -21,11 +22,14 @@ const initGame = async () => {
 
   const scene = createScene(engine);
 
+  // --- SHADER DISABLED ---
+  // createBackground(scene);
+  // -----------------------
+
   const asteroidSystem = createAsteroidManager(scene);
   const projectileManager = createProjectileManager(scene);
   const countdown = createCountdown(scene);
 
-  //ufo en rocket tegelijk laden
   const [spaceship, ufo] = await Promise.all([
     createRocketship(scene),
     createUFO(scene, projectileManager)
@@ -34,7 +38,7 @@ const initGame = async () => {
   const shield = createShield(scene, spaceship, scene.activeCamera);
   const healthManager = createHealthManager(scene, spaceship, shield);
   const healthBoost = createHealthBoost(scene, spaceship, healthManager, scene.activeCamera);
-  const rocketShooter = createRocketShooter(scene, spaceship, scene.activeCamera);
+  const rocketShooter = createRocketShooter(scene, spaceship, scene.activeCamera, projectileManager);
 
   const levelManager = createLevelManager(
     scene,
@@ -53,21 +57,16 @@ const initGame = async () => {
   healthManager.setupCollisionListener(asteroidSystem.manager, scene.activeCamera);
   healthManager.setupProjectileCollisionListener(projectileManager, scene.activeCamera);
 
-  //loading screen weg en ui zichtbaar
   engine.hideLoadingUI();
+
   const uiState = createPlayButton(countdown, levelManager);
 
   startRenderLoop(engine, scene, () => {
     if (uiState.isPlaying) {
       asteroidSystem.update();
       projectileManager.update();
-
-      // If your powerups have update loops (rotation), call them here too
-      // if (shield.update) shield.update();
-      // if (rocketShooter.update) rocketShooter.update();
     }
   });
 };
 
-// Start the game
 initGame().catch(console.error);

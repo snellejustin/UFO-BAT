@@ -7,9 +7,10 @@ const UFO_CONFIG = {
     pathPoints: 5,
     pathXRange: { min: -8, max: 8 },
     pathYRange: { min: 4, max: 7 },
-    rotationSpeed: 0.001
+    rotationSpeed: 0.001,
+    bossHitboxDiameter: 4.0,
+    bossPhysics: { mass: 0, restitution: 0.1, friction: 0 }
 };
-
 
 const smoothStep = (t) => t * t * (3 - 2 * t);
 
@@ -20,48 +21,85 @@ export const createUFO = async (scene, projectileManager) => {
     let isFlying = false;
     let flyingObserver = null;
 
-    const modelFiles = ["ufoalien1.glb", "ufoalien2.glb", "ufoalien3.glb", "ufoalien4.glb"];
+    const modelFiles = ["ufoalien1.glb", "ufoalien2.glb", "ufoalien3.glb", "ufoalien4.glb", "ufoalienboss.glb"];
 
     await Promise.all(modelFiles.map(async (filename) => {
-        const result = await BABYLON.SceneLoader.ImportMeshAsync(
-            "",
-            "assets/blender-models/",
-            filename,
-            scene
-        );
+        const isBoss = filename === "ufoalienboss.glb";
+        let visualResult, hitboxResult;
 
-        const rootMesh = result.meshes[0];
-        rootMesh.name = `ufo_root_${filename}`;
+        if (isBoss) {
+            [visualResult, hitboxResult] = await Promise.all([
+                BABYLON.SceneLoader.ImportMeshAsync("", "assets/blender-models/", filename, scene),
+                BABYLON.SceneLoader.ImportMeshAsync("", "assets/blender-models/", "ufoalienboss-hitbox.glb", scene)
+            ]);
+        } else {
+            visualResult = await BABYLON.SceneLoader.ImportMeshAsync("", "assets/blender-models/", filename, scene);
+        }
 
-        rootMesh.setEnabled(false);
-        rootMesh.position.copyFrom(UFO_CONFIG.startPosition);
+        let ufoRoot;
 
-        const childMeshes = result.meshes.filter(m => m !== rootMesh);
+        if (isBoss && hitboxResult) {
+            const collisionMeshes = hitboxResult.meshes.filter(m => m.getTotalVertices() > 0);
+            const mergedHitbox = BABYLON.Mesh.MergeMeshes(collisionMeshes, true, true, undefined, false, false);
 
+            if (mergedHitbox) {
+                ufoRoot = mergedHitbox;
+                ufoRoot.name = "boss_hitbox";
+                ufoRoot.isVisible = false;
+
+                ufoRoot.physicsImpostor = new BABYLON.PhysicsImpostor(
+                    ufoRoot,
+                    BABYLON.PhysicsImpostor.MeshImpostor,
+                    UFO_CONFIG.bossPhysics,
+                    scene
+                );
+
+                //forceer kinematic type
+                if (ufoRoot.physicsImpostor.physicsBody) {
+                    ufoRoot.physicsImpostor.physicsBody.type = 4;
+                    ufoRoot.physicsImpostor.physicsBody.updateMassProperties();
+                }
+
+            } else {
+                console.error("Failed to merge boss hitbox!");
+                ufoRoot = new BABYLON.TransformNode(`ufo_root_${filename}`, scene);
+            }
+        } else {
+            ufoRoot = new BABYLON.TransformNode(`ufo_root_${filename}`, scene);
+        }
+
+        const visualRoot = visualResult.meshes[0];
+        visualRoot.parent = ufoRoot;
+        visualRoot.position.setAll(0);
+        ufoRoot.position.copyFrom(UFO_CONFIG.startPosition);
+        ufoRoot.setEnabled(false);
+
+        const childMeshes = visualResult.meshes.filter(m => m !== visualRoot);
         childMeshes.forEach(m => m.rotation.x = BABYLON.Tools.ToRadians(UFO_CONFIG.rotation.default));
 
-        ufoAssets.set(filename, { root: rootMesh, children: childMeshes });
+        ufoAssets.set(filename, { root: ufoRoot, visuals: childMeshes });
     }));
 
     currentActiveUfo = ufoAssets.get("ufoalien1.glb");
 
     const setModel = (modelFilename) => {
         if (isFlying) return;
-
-        if (currentActiveUfo) {
-            currentActiveUfo.root.setEnabled(false);
-        }
+        if (currentActiveUfo) currentActiveUfo.root.setEnabled(false);
 
         if (ufoAssets.has(modelFilename)) {
             currentActiveUfo = ufoAssets.get(modelFilename);
             currentActiveUfo.root.setEnabled(true);
             currentActiveUfo.root.position.copyFrom(UFO_CONFIG.startPosition);
 
-            currentActiveUfo.children.forEach(m =>
+            if (currentActiveUfo.root.physicsImpostor) {
+                currentActiveUfo.root.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
+                currentActiveUfo.root.physicsImpostor.setAngularVelocity(BABYLON.Vector3.Zero());
+                currentActiveUfo.root.physicsImpostor.forceUpdate();
+            }
+
+            currentActiveUfo.visuals.forEach(m =>
                 m.rotation.x = BABYLON.Tools.ToRadians(UFO_CONFIG.rotation.default)
             );
-        } else {
-            console.error(`Model ${modelFilename} not found in preloaded assets.`);
         }
     };
 
@@ -70,6 +108,9 @@ export const createUFO = async (scene, projectileManager) => {
 
         isFlying = true;
         currentActiveUfo.root.setEnabled(true);
+
+        const isBoss = currentActiveUfo === ufoAssets.get("ufoalienboss.glb");
+        let bossHealth = 3;
 
         const config = {
             pathPoints: difficultyConfig.pathPoints ?? UFO_CONFIG.pathPoints,
@@ -81,31 +122,6 @@ export const createUFO = async (scene, projectileManager) => {
             exitDuration: difficultyConfig.exitDuration ?? 1000,
             projectileSpeed: difficultyConfig.projectileSpeed ?? -5,
             shootingPattern: difficultyConfig.shootingPattern ?? "single"
-        };
-
-        const shootProjectiles = (position, speed) => {
-            if (!projectileManager) return;
-
-            const angleRad = BABYLON.Tools.ToRadians(30);
-
-            const createVelocity = (angleMultiplier) => new BABYLON.Vector3(
-                Math.sin(angleRad * angleMultiplier) * Math.abs(speed),
-                Math.cos(angleRad * angleMultiplier) * speed,
-                0
-            );
-
-            if (config.shootingPattern === "spread") {
-                projectileManager.shootProjectile(position.clone(), speed, createVelocity(-1)); //links
-                projectileManager.shootProjectile(position.clone(), speed, createVelocity(1));  //rechts
-            }
-            else if (config.shootingPattern === "tripleSpread") {
-                projectileManager.shootProjectile(position.clone(), speed, createVelocity(-1)); //links
-                projectileManager.shootProjectile(position.clone(), speed);                     //midden
-                projectileManager.shootProjectile(position.clone(), speed, createVelocity(1));  //rechts
-            }
-            else {
-                projectileManager.shootProjectile(position, speed);
-            }
         };
 
         const path = [];
@@ -122,15 +138,99 @@ export const createUFO = async (scene, projectileManager) => {
         let phase = 'entering';
         let rotationTime = 0;
 
+        if (isBoss && currentActiveUfo.root.physicsImpostor && projectileManager) {
+            const bossImpostor = currentActiveUfo.root.physicsImpostor;
+
+            const onProjectileHitBoss = (projImpostor, bossImpostor) => {
+                const projMesh = projImpostor.object;
+
+                //al geraakt/uitgeschakeld? STOP direct.
+                if (projMesh.isHit || !projMesh.isEnabled()) return;
+
+                const vel = projImpostor.getLinearVelocity();
+
+                //check: kogel gaat omhoog (speler) EN boss leeft
+                if (vel && vel.y > -1 && bossHealth > 0) {
+
+                    //zet collisionMask op 0 zodat hij niet nog eens botst.
+                    projectileManager.removeProjectile(projMesh);
+
+                    bossHealth--;
+                    console.log(`BOSS HIT! Health remaining: ${bossHealth}`);
+
+                    // Visuele Feedback
+                    if (currentActiveUfo.visuals) {
+                        currentActiveUfo.visuals.forEach(m => {
+                            if (m.material) {
+                                const oldColor = m.material.emissiveColor.clone();
+                                m.material.emissiveColor = new BABYLON.Color3(1, 0, 0);
+                                setTimeout(() => {
+                                    if (m.material) m.material.emissiveColor = oldColor;
+                                }, 100);
+                            }
+                        });
+                    }
+
+                    if (bossHealth <= 0) {
+                        const currentPos = currentActiveUfo.root.position;
+                        path.length = 0;
+                        path.push(new BABYLON.Vector2(currentPos.x, currentPos.y));
+                        phase = 'exiting';
+                        timeAtPoint = 0;
+                        shotsFired = 999;
+                    }
+                }
+            };
+
+            const collisionObserver = scene.onBeforeRenderObservable.add(() => {
+                if (!projectileManager.projectiles) return;
+
+                projectileManager.projectiles.forEach((proj) => {
+                    if (proj.active && proj.mesh.physicsImpostor) {
+                        if (!proj._bossCollisionRegistered) {
+                            proj._bossCollisionRegistered = true;
+                            proj.mesh.physicsImpostor.registerOnPhysicsCollide(bossImpostor, onProjectileHitBoss);
+                        }
+                    }
+                });
+            });
+
+            currentActiveUfo._collisionObserver = collisionObserver;
+        }
+
+        const shootProjectiles = (position, speed) => {
+            if (!projectileManager) return;
+            const angleRad = BABYLON.Tools.ToRadians(30);
+            const createVelocity = (angleMultiplier) => new BABYLON.Vector3(
+                Math.sin(angleRad * angleMultiplier) * Math.abs(speed),
+                Math.cos(angleRad * angleMultiplier) * speed,
+                0
+            );
+
+            if (config.shootingPattern === "spread") {
+                projectileManager.shootProjectile(position.clone(), speed, createVelocity(-1));
+                projectileManager.shootProjectile(position.clone(), speed, createVelocity(1));
+            }
+            else if (config.shootingPattern === "tripleSpread") {
+                projectileManager.shootProjectile(position.clone(), speed, createVelocity(-1));
+                projectileManager.shootProjectile(position.clone(), speed);
+                projectileManager.shootProjectile(position.clone(), speed, createVelocity(1));
+            }
+            else {
+                projectileManager.shootProjectile(position, speed);
+            }
+        };
+
         flyingObserver = scene.onBeforeRenderObservable.add(() => {
             const dt = scene.getEngine().getDeltaTime();
             rotationTime += dt;
 
+            // Wobble
             const sineWave = Math.sin(rotationTime * UFO_CONFIG.rotationSpeed);
             const rotationProgress = smoothStep((sineWave + 1) / 2);
             const rotationAngle = BABYLON.Scalar.Lerp(UFO_CONFIG.rotation.min, UFO_CONFIG.rotation.max, rotationProgress);
 
-            currentActiveUfo.children.forEach(mesh => {
+            currentActiveUfo.visuals.forEach(mesh => {
                 mesh.rotation.x = BABYLON.Tools.ToRadians(rotationAngle);
             });
 
@@ -150,7 +250,7 @@ export const createUFO = async (scene, projectileManager) => {
                 duration = config.timePerPoint;
             }
             else if (phase === 'exiting') {
-                startPos = path[path.length - 1];
+                startPos = path[path.length - 1] || UFO_CONFIG.startPosition;
                 targetPos = UFO_CONFIG.startPosition;
                 duration = config.exitDuration;
             }
@@ -162,6 +262,11 @@ export const createUFO = async (scene, projectileManager) => {
             currentActiveUfo.root.position.x = BABYLON.Scalar.Lerp(startPos.x, targetPos.x, easedProgress);
             currentActiveUfo.root.position.y = BABYLON.Scalar.Lerp(startPos.y, targetPos.y, easedProgress);
 
+            //force update is nodig omdat mass 0 is
+            if (currentActiveUfo.root.physicsImpostor) {
+                currentActiveUfo.root.physicsImpostor.forceUpdate();
+            }
+
             if (currentProgress >= 1) {
                 timeAtPoint = 0;
 
@@ -170,7 +275,6 @@ export const createUFO = async (scene, projectileManager) => {
                     currentPointIndex = 1;
                 }
                 else if (phase === 'flying') {
-                    //shoot
                     if (shotsFired < config.totalShots && currentPointIndex <= config.pathPoints - 2) {
                         shootProjectiles(currentActiveUfo.root.position.clone(), config.projectileSpeed);
                         shotsFired++;
@@ -178,15 +282,24 @@ export const createUFO = async (scene, projectileManager) => {
 
                     currentPointIndex++;
                     if (currentPointIndex >= path.length) {
-                        phase = 'exiting';
+                        if (isBoss && bossHealth > 0) {
+                            path.reverse();
+                            currentPointIndex = 1;
+                        } else {
+                            phase = 'exiting';
+                        }
                     }
                 }
                 else if (phase === 'exiting') {
-                    //cleanup
                     scene.onBeforeRenderObservable.remove(flyingObserver);
                     flyingObserver = null;
                     isFlying = false;
                     currentActiveUfo.root.setEnabled(false);
+
+                    if (isBoss && currentActiveUfo._collisionObserver) {
+                        scene.onBeforeRenderObservable.remove(currentActiveUfo._collisionObserver);
+                        currentActiveUfo._collisionObserver = null;
+                    }
 
                     if (onComplete) onComplete();
                 }

@@ -24,7 +24,9 @@ const createSkybox = (scene) => {
 
 export const createScene = (engine) => {
     const scene = new BABYLON.Scene(engine);
+
     scene.createDefaultLight();
+    scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
 
     const camera = new BABYLON.UniversalCamera('camera', new BABYLON.Vector3(0, 0, -6), scene);
     camera.setTarget(new BABYLON.Vector3(0, 4, 0));
@@ -32,15 +34,21 @@ export const createScene = (engine) => {
 
     const gravity = new BABYLON.Vector3(0, 0, 0);
     scene.enablePhysics(gravity, new CannonJSPlugin(true, 20, CANNON));
-    scene.getPhysicsEngine().setTimeStep(1 / 120);
+
+    //glow layer
+    const gl = new BABYLON.GlowLayer("glow", scene);
+    gl.intensity = 0.6;
 
     const skybox = createSkybox(scene);
 
     scene.onBeforeRenderObservable.add(() => {
-        const dt = scene.getEngine().getDeltaTime() / 1000; 
-        const rotationSpeed = 0.02; 
+        const dt = scene.getEngine().getDeltaTime() / 1000;
+        const rotationSpeed = 0.02;
 
-        skybox.rotation.x += rotationSpeed * dt;
+        //rotate skybox slowly
+        if (skybox) {
+            skybox.rotation.x += rotationSpeed * dt;
+        }
     });
 
     return scene;

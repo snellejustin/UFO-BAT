@@ -55,9 +55,6 @@ export const createRocketship = async (scene) => {
             body.angularFactor = new CANNON.Vec3(0, 0, 0);
             body.fixedRotation = true;
             body.updateMassProperties();
-
-            // body.collisionFilterGroup = 1;
-            // body.collisionFilterMask = 2 | 4 | 8;
         }
 
         spaceship.physicsImpostor = mergedCollision.physicsImpostor;
@@ -94,7 +91,7 @@ export const createRocketship = async (scene) => {
 export const setupRocketshipPhysics = (scene, spaceship, inputWrapper) => {
     const maxSpeed = 20.0;
     const accelRate = 0.20;
-    const brakeRate = 0.30; 
+    const brakeRate = 0.30;
 
     const maxSensorTilt = 30;
     const deadZone = 0.5;
@@ -127,7 +124,6 @@ export const setupRocketshipPhysics = (scene, spaceship, inputWrapper) => {
         calculateScreenBoundary();
     });
 
-    // Reusable vectors
     const _tmpVelocity = new BABYLON.Vector3();
     const _newVelocityVector = new BABYLON.Vector3();
 
@@ -138,7 +134,6 @@ export const setupRocketshipPhysics = (scene, spaceship, inputWrapper) => {
         const collisionMesh = spaceship.metadata.collisionMesh;
         const pos = collisionMesh ? collisionMesh.position : spaceship.position;
 
-        // Get Current Velocity
         const currentVel = imp.getLinearVelocity();
         if (currentVel) {
             _tmpVelocity.copyFrom(currentVel);
@@ -169,7 +164,6 @@ export const setupRocketshipPhysics = (scene, spaceship, inputWrapper) => {
             finalVX = 0;
         }
 
-        //boundary check
         if (pos.x > xMax) {
             spaceship.position.x = xMax;
             if (collisionMesh) collisionMesh.position.x = xMax;
@@ -181,7 +175,6 @@ export const setupRocketshipPhysics = (scene, spaceship, inputWrapper) => {
             if (finalVX < 0) finalVX = 0;
         }
 
-        //apply
         _newVelocityVector.set(finalVX, 0, 0);
         imp.setLinearVelocity(_newVelocityVector);
     });

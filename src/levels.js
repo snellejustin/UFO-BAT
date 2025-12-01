@@ -11,98 +11,98 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
    
 
     const levels = [
-        {
-            level: 1,
-            duration: 12000,
-            asteroidSpeed: { min: 3, max: 6 },
-            spawnRate: 0.5,
-            ufoModel: "ufoalien1.glb",
-            projectileConfig: { 
-                size: 0.2, 
-                color: { r: 0.063, g: 0.992, b: 0.847 }, 
-                glowIntensity: 1.0 },
-            ufoConfig: {
-                pathPoints: 5,
-                pathXRange: { min: -7, max: 7 },
-                pathYRange: { min: 5, max: 7 },
-                timePerPoint: 2500, 
-                totalShots: 3, 
-                enterDuration: 2000, 
-                exitDuration: 1000, 
-                projectileSpeed: -4
-            }
-        },
-        {
-            level: 2,
-            duration: 15000,
-            asteroidSpeed: { min: 4, max: 8 },
-            spawnRate: 0.7,
-            ufoModel: "ufoalien2.glb",
-            projectileConfig: { 
-                size: 0.7, 
-                color: { r: 0.6, g: 0.0, b: 1.0 }, 
-                glowIntensity: 1.2 },
-            ufoConfig: {
-                pathPoints: 7, 
-                pathXRange: { min: -7, max: 7 }, 
-                pathYRange: { min: 4.5, max: 7 },
-                timePerPoint: 2200, 
-                totalShots: 5, 
-                enterDuration: 1800, 
-                exitDuration: 1000, 
-                projectileSpeed: -5
-            }
-        },
-        {
-            level: 3,
-            duration: 18000,
-            asteroidSpeed: { min: 5, max: 10 },
-            spawnRate: 1,
-            ufoModel: "ufoalien3.glb",
-            projectileConfig: { 
-                size: 0.2, 
-                color: { r: 1.0, g: 0.4, b: 0.0 },
-                glowIntensity: 1.5 },
-            ufoConfig: {
-                pathPoints: 7, 
-                pathXRange: { min: -7, max: 7 }, 
-                pathYRange: { min: 4, max: 7 },
-                timePerPoint: 2000, 
-                totalShots: 5, 
-                enterDuration: 1600, 
-                exitDuration: 900, 
-                projectileSpeed: -6, 
-                shootingPattern: "spread"
-            }
-        },
-        {
-            level: 4,
-            duration: 20000,
-            asteroidSpeed: { min: 6, max: 12 },
-            spawnRate: 1.2,
-            ufoModel: "ufoalien4.glb",
-            projectileConfig: { 
-                size: 0.2, 
-                color: { r: 1.0, g: 1.0, b: 0.0 }, 
-                glowIntensity: 1.8 },
-            ufoConfig: {
-                pathPoints: 7, 
-                pathXRange: { min: -7, max: 7 },
-                pathYRange: { min: 3.5, max: 7.5 },
-                timePerPoint: 1800,
-                totalShots: 5, 
-                enterDuration: 1400, 
-                exitDuration: 800, 
-                projectileSpeed: -7, 
-                shootingPattern: "tripleSpread"
-            },
-        },
+        // {
+        //     level: 1,
+        //     duration: 12000,
+        //     asteroidSpeed: { min: 3, max: 6 },
+        //     spawnRate: 0.5,
+        //     ufoModel: "ufoalien1.glb",
+        //     projectileConfig: { 
+        //         size: 0.2, 
+        //         color: { r: 0.063, g: 0.992, b: 0.847 }, 
+        //         glowIntensity: 1.0 },
+        //     ufoConfig: {
+        //         pathPoints: 5,
+        //         pathXRange: { min: -7, max: 7 },
+        //         pathYRange: { min: 5, max: 7 },
+        //         timePerPoint: 2500, 
+        //         totalShots: 3, 
+        //         enterDuration: 2000, 
+        //         exitDuration: 1000, 
+        //         projectileSpeed: -4
+        //     }
+        // },
+        // {
+        //     level: 2,
+        //     duration: 15000,
+        //     asteroidSpeed: { min: 4, max: 8 },
+        //     spawnRate: 0.7,
+        //     ufoModel: "ufoalien2.glb",
+        //     projectileConfig: { 
+        //         size: 0.7, 
+        //         color: { r: 0.6, g: 0.0, b: 1.0 }, 
+        //         glowIntensity: 1.2 },
+        //     ufoConfig: {
+        //         pathPoints: 7, 
+        //         pathXRange: { min: -7, max: 7 }, 
+        //         pathYRange: { min: 4.5, max: 7 },
+        //         timePerPoint: 2200, 
+        //         totalShots: 5, 
+        //         enterDuration: 1800, 
+        //         exitDuration: 1000, 
+        //         projectileSpeed: -5
+        //     }
+        // },
+        // {
+        //     level: 3,
+        //     duration: 18000,
+        //     asteroidSpeed: { min: 5, max: 10 },
+        //     spawnRate: 1,
+        //     ufoModel: "ufoalien3.glb",
+        //     projectileConfig: { 
+        //         size: 0.2, 
+        //         color: { r: 1.0, g: 0.4, b: 0.0 },
+        //         glowIntensity: 1.5 },
+        //     ufoConfig: {
+        //         pathPoints: 7, 
+        //         pathXRange: { min: -7, max: 7 }, 
+        //         pathYRange: { min: 4, max: 7 },
+        //         timePerPoint: 2000, 
+        //         totalShots: 5, 
+        //         enterDuration: 1600, 
+        //         exitDuration: 900, 
+        //         projectileSpeed: -6, 
+        //         shootingPattern: "spread"
+        //     }
+        // },
+        // {
+        //     level: 4,
+        //     duration: 20000,
+        //     asteroidSpeed: { min: 6, max: 12 },
+        //     spawnRate: 1.2,
+        //     ufoModel: "ufoalien4.glb",
+        //     projectileConfig: { 
+        //         size: 0.2, 
+        //         color: { r: 1.0, g: 1.0, b: 0.0 }, 
+        //         glowIntensity: 1.8 },
+        //     ufoConfig: {
+        //         pathPoints: 7, 
+        //         pathXRange: { min: -7, max: 7 },
+        //         pathYRange: { min: 3.5, max: 7.5 },
+        //         timePerPoint: 1800,
+        //         totalShots: 5, 
+        //         enterDuration: 1400, 
+        //         exitDuration: 800, 
+        //         projectileSpeed: -7, 
+        //         shootingPattern: "tripleSpread"
+        //     },
+        // },
         {
             level: 5,
             duration: 25000,
             asteroidSpeed: { min: 7, max: 15 },
             spawnRate: 1.5,
-            ufoModel: "ufoalien1.glb",
+            ufoModel: "ufoalienboss.glb",
             projectileConfig: {
                 size: 1, 
                 color: { r: 0.0, g: 0.1, b: 0.5 },
@@ -110,7 +110,7 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
             ufoConfig: {
                 pathPoints: 8, 
                 pathXRange: { min: -7, max: 7 },
-                pathYRange: { min: 3, max: 8 },
+                pathYRange: { min: 5, max: 9 },
                 timePerPoint: 1600, 
                 totalShots: 6, 
                 enterDuration: 1200, 
@@ -219,11 +219,16 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
         const levelConfig = levels[currentLevelIndex];
         isWaveActive = true;
 
-        if (ufo.setModel && levelConfig.ufoModel) {
-            ufo.setModel(levelConfig.ufoModel);
-        } else if (ufo.loadNewModel) {
-            //fallback naar oude methode
-            ufo.loadNewModel(levelConfig.ufoModel);
+        //for boss levels, don't set model yet (wait for rocket shooter pickup)
+        const isBossLevel = levelConfig.hasBossEvent;
+        
+        if (!isBossLevel) {
+            if (ufo.setModel && levelConfig.ufoModel) {
+                ufo.setModel(levelConfig.ufoModel);
+            } else if (ufo.loadNewModel) {
+                //fallback naar oude methode
+                ufo.loadNewModel(levelConfig.ufoModel);
+            }
         }
 
         if (projectileManager?.setProjectileConfig && levelConfig.projectileConfig) {
@@ -236,29 +241,29 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
             asteroidSystem.manager.speedMin = levelConfig.asteroidSpeed.min;
             asteroidSystem.manager.speedMax = levelConfig.asteroidSpeed.max;
 
-            // Schedule powerups with guaranteed spacing to avoid double spawns
+            //powerups with guaranteed spacing to avoid double spawns
             const powerups = [];
             if (healthBoost) powerups.push(healthBoost);
             if (shield) powerups.push(shield);
 
             if (powerups.length > 0) {
-                // Divide the level duration into segments for each powerup
-                const minSpacing = 2000; // Minimum 2 seconds between powerups
+                //divide the level duration into segments for each powerup
+                const minSpacing = 2000;
                 const safeWindow = levelConfig.duration - 3000;
                 
                 powerups.forEach((powerup, index) => {
-                    // Generate delays ensuring they don't overlap
+                    //delays ensuring they don't overlap
                     let delay;
                     if (powerups.length === 1) {
                         delay = Math.random() * safeWindow;
                     } else {
-                        // Split timeline into segments with spacing
+                        //split timeline into segments with spacing
                         const segmentSize = safeWindow / powerups.length;
                         delay = (segmentSize * index) + (Math.random() * (segmentSize - minSpacing));
                     }
                     
                     safeTimeout(() => {
-                        // Pass asteroid system to check for collisions
+                        //pass asteroid system to check for collisions
                         if (powerup.spawnPowerup) {
                             powerup.spawnPowerup(asteroidSystem);
                         }
@@ -282,7 +287,7 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
 
         const levelConfig = levels[currentLevelIndex];
 
-        // Check for "Boss" event (Rocket Shooter)
+        //check for boss event (Rocket Shooter)
         const isRocketLevel = levelConfig.hasBossEvent;
 
         if (isRocketLevel && rocketShooter) {
@@ -302,6 +307,15 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
 
     const startUfoPhase = () => {
         const currentLevelConfig = levels[currentLevelIndex];
+
+        //set boss model now (right before flying)
+        if (currentLevelConfig.hasBossEvent && currentLevelConfig.ufoModel) {
+            if (ufo.setModel) {
+                ufo.setModel(currentLevelConfig.ufoModel);
+            } else if (ufo.loadNewModel) {
+                ufo.loadNewModel(currentLevelConfig.ufoModel);
+            }
+        }
 
         ufo.flyUFO(() => {
             safeTimeout(() => {

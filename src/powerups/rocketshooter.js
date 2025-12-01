@@ -1,127 +1,153 @@
 import * as BABYLON from '@babylonjs/core';
+import * as GUI from '@babylonjs/gui';
 
-export const createRocketShooter = (scene, rocketship, camera) => {
+const CONFIG = {
+    spawnHeight: 15,
+    hoverHeight: 2,
+    fallSpeed: -4,
+    fireRate: 1.0,
+    projectileSpeed: 10,
+    colGroup: 4,
+    colMask: 1,
+};
+
+export const createRocketShooter = (scene, rocketship, camera, projectileManager) => {
+
     let activePowerup = null;
-    let isActive = false;
-    let onCollectedCallback = null;
-    let updateObserver = null; // Track observer for cleanup
+    let isShooting = false;
+    let shootTimer = 0;
+    let collisionCallback = null;
+
+    let uiTexture = null;
+    let updateObserver = null;
+
+    const setupGUI = () => {
+        if (!uiTexture) uiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("RocketShooterUI", true, scene);
+    };
+
+    const showPopup = () => {
+        setupGUI();
+        const text = new GUI.TextBlock();
+        text.text = "AUTO-CANNON!";
+        text.color = "#FF0000";
+        text.fontSize = 28;
+        text.fontWeight = "bold";
+        text.outlineWidth = 2;
+        text.outlineColor = "black";
+        uiTexture.addControl(text);
+        text.linkWithMesh(rocketship);
+        text.linkOffsetY = -100;
+
+        let elapsed = 0;
+        const duration = 1500;
+        const animObserver = scene.onBeforeRenderObservable.add(() => {
+            elapsed += scene.getEngine().getDeltaTime();
+            const progress = elapsed / duration;
+            text.linkOffsetY = -100 - (progress * 80);
+            text.alpha = 1 - progress;
+            if (progress >= 1) {
+                scene.onBeforeRenderObservable.remove(animObserver);
+                text.dispose();
+            }
+        });
+    };
 
     const spawnPowerup = (onCollected) => {
-        if (activePowerup) return;
+        if (activePowerup || isShooting) return;
 
-        onCollectedCallback = onCollected;
+        const mesh = BABYLON.MeshBuilder.CreateSphere('rocketShooterPowerup', { diameter: 0.8 }, scene);
+        mesh.position.set(0, CONFIG.spawnHeight, 0);
 
-        const powerup = BABYLON.MeshBuilder.CreateSphere('rocketShooterPowerup', { diameter: 0.5 }, scene);
-        powerup.position.set(0, 15, 0);
+        const mat = new BABYLON.StandardMaterial('rocketShooterMat', scene);
+        mat.emissiveColor = new BABYLON.Color3(1, 0, 0);
+        mat.disableLighting = true;
+        mesh.material = mat;
 
-        const material = new BABYLON.StandardMaterial('rocketShooterMat', scene);
-        material.emissiveColor = new BABYLON.Color3(1, 0, 0);
-        material.diffuseColor = new BABYLON.Color3(1, 0, 0);
-        powerup.material = material;
-
-        powerup.physicsImpostor = new BABYLON.PhysicsImpostor(
-            powerup,
+        mesh.physicsImpostor = new BABYLON.PhysicsImpostor(
+            mesh,
             BABYLON.PhysicsImpostor.SphereImpostor,
-            { mass: 1, restitution: 0.3 },
+            { mass: 1, restitution: 0.3, friction: 0.0 },
             scene
         );
 
-        powerup.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, -4, 0));
+        const body = mesh.physicsImpostor.physicsBody;
+        if (body) {
+            body.collisionFilterGroup = CONFIG.colGroup;
+            body.collisionFilterMask = CONFIG.colMask;
+            body.collisionResponse = 0;
+            body.fixedRotation = true;
+            body.updateMassProperties();
+        }
 
-        activePowerup = powerup;
+        mesh.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, CONFIG.fallSpeed, 0));
+        activePowerup = mesh;
 
         const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
-        
-        collisionMesh.physicsImpostor.registerOnPhysicsCollide(powerup.physicsImpostor, () => {
-            if (activePowerup) {
-                collectPowerup();
-            }
-        });
 
-        // Clean up old observer if exists
-        if (updateObserver) {
-            scene.onBeforeRenderObservable.remove(updateObserver);
+        if (collisionMesh.physicsImpostor) {
+            collisionCallback = () => {
+                collectPowerup(onCollected);
+            };
+            collisionMesh.physicsImpostor.registerOnPhysicsCollide(mesh.physicsImpostor, collisionCallback);
         }
-
-        updateObserver = scene.onBeforeRenderObservable.add(() => {
-            if (!activePowerup) return;
-
-            if (activePowerup.position.y <= 2 && activePowerup.physicsImpostor) {
-                activePowerup.position.y = 2;
-                activePowerup.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
-                activePowerup.physicsImpostor.setAngularVelocity(BABYLON.Vector3.Zero());
-            }
-        });
     };
 
-    const collectPowerup = () => {
+    const collectPowerup = (onCollected) => {
         if (!activePowerup) return;
 
-        if (activePowerup.physicsImpostor) {
-            activePowerup.physicsImpostor.dispose();
-        }
-        activePowerup.dispose();
+        const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
+        const powerupToRemove = activePowerup;
+
+        //zet direct op null om dubbele triggers te voorkomen
         activePowerup = null;
 
-        isActive = true;
-
-        showCollectionPopup();
-        
-        if (onCollectedCallback) {
-            onCollectedCallback(true);
-            onCollectedCallback = null;
+        //unregister collision direct
+        if (collisionMesh.physicsImpostor && powerupToRemove.physicsImpostor && collisionCallback) {
+            collisionMesh.physicsImpostor.unregisterOnPhysicsCollide(powerupToRemove.physicsImpostor, collisionCallback);
+            collisionCallback = null;
         }
+
+        //veilig verwijderen (Babylon manier):
+        //wacht tot NA de physics step om te disposen.
+        scene.onAfterPhysicsObservable.addOnce(() => {
+            if (powerupToRemove) {
+                if (powerupToRemove.physicsImpostor) powerupToRemove.physicsImpostor.dispose();
+                powerupToRemove.dispose();
+            }
+        });
+
+        isShooting = true;
+        showPopup();
+        if (onCollected) onCollected(true);
     };
 
-    const showCollectionPopup = () => {
-        const rocketWorldPos = new BABYLON.Vector3(
-            rocketship.position.x,
-            rocketship.position.y + 2,
-            rocketship.position.z
-        );
+    updateObserver = scene.onBeforeRenderObservable.add(() => {
+        const dt = scene.getEngine().getDeltaTime() / 1000.0;
 
-        const engine = scene.getEngine();
-        const screenPos = BABYLON.Vector3.Project(
-            rocketWorldPos,
-            BABYLON.Matrix.Identity(),
-            scene.getTransformMatrix(),
-            camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight())
-        );
+        if (activePowerup && activePowerup.physicsImpostor) {
+            if (activePowerup.position.y <= CONFIG.hoverHeight) {
+                activePowerup.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
+                activePowerup.physicsImpostor.setAngularVelocity(BABYLON.Vector3.Zero());
+                activePowerup.position.y = CONFIG.hoverHeight;
+                activePowerup.rotation.setAll(0);
+                activePowerup.physicsImpostor.forceUpdate();
+            }
+        }
 
-        const popup = document.createElement('div');
-        popup.textContent = 'ROCKET SHOOTER!';
-        popup.style.cssText = `
-            position: fixed;
-            left: ${screenPos.x}px;
-            top: ${screenPos.y - 30}px;
-            transform: translate(-50%, -100%);
-            font-size: 24px;
-            font-weight: bold;
-            color: #FF0000;
-            text-shadow: 0 0 10px #FF0000, 0 0 20px #FF0000;
-            pointer-events: none;
-            z-index: 1000;
-        `;
-        document.body.appendChild(popup);
+        if (isShooting && projectileManager) {
+            shootTimer += dt;
 
-        let yOffset = 0;
-        const animationInterval = setInterval(() => {
-            yOffset += 2;
-            popup.style.top = `${screenPos.y - 30 - yOffset}px`;
-            popup.style.opacity = `${1 - yOffset / 60}`;
-        }, 16);
-
-        setTimeout(() => {
-            clearInterval(animationInterval);
-            popup.remove();
-        }, 1000);
-    };
-
-    const isPowerupActive = () => isActive;
-
-    const isPowerupCollected = () => {
-        return activePowerup === null && isActive;
-    };
+            if (shootTimer >= CONFIG.fireRate) {
+                shootTimer = 0;
+                projectileManager.shootProjectile(
+                    rocketship.position.clone(),
+                    CONFIG.projectileSpeed,
+                    null,
+                    true
+                );
+            }
+        }
+    });
 
     const cleanup = () => {
         if (updateObserver) {
@@ -129,19 +155,17 @@ export const createRocketShooter = (scene, rocketship, camera) => {
             updateObserver = null;
         }
         if (activePowerup) {
-            if (activePowerup.physicsImpostor) {
-                activePowerup.physicsImpostor.dispose();
-            }
+            if (activePowerup.physicsImpostor) activePowerup.physicsImpostor.dispose();
             activePowerup.dispose();
             activePowerup = null;
         }
-        isActive = false;
+        if (uiTexture) uiTexture.dispose();
+        isShooting = false;
     };
 
     return {
         spawnPowerup,
-        isPowerupActive,
-        isPowerupCollected,
-        cleanup
+        cleanup,
+        isActive: () => isShooting
     };
 };
