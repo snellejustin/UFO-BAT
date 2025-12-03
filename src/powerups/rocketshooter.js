@@ -7,8 +7,6 @@ const CONFIG = {
     fallSpeed: -4,
     fireRate: 1.0,
     projectileSpeed: 10,
-    colGroup: 4,
-    colMask: 1,
 };
 
 export const createRocketShooter = (scene, rocketship, camera, projectileManager) => {
@@ -34,26 +32,32 @@ export const createRocketShooter = (scene, rocketship, camera, projectileManager
         text.fontWeight = "bold";
         text.outlineWidth = 2;
         text.outlineColor = "black";
+
         uiTexture.addControl(text);
+
         text.linkWithMesh(rocketship);
         text.linkOffsetY = -100;
 
-        let elapsed = 0;
-        const duration = 1500;
+        let alpha = 1.0;
+        let offset = -100;
+
         const animObserver = scene.onBeforeRenderObservable.add(() => {
-            elapsed += scene.getEngine().getDeltaTime();
-            const progress = elapsed / duration;
-            text.linkOffsetY = -100 - (progress * 80);
-            text.alpha = 1 - progress;
-            if (progress >= 1) {
+            offset -= 2;    
+            alpha -= 0.015;
+
+            text.linkOffsetY = offset;
+            text.alpha = alpha;
+
+            if (alpha <= 0) {
                 scene.onBeforeRenderObservable.remove(animObserver);
+                uiTexture.removeControl(text);
                 text.dispose();
             }
         });
     };
 
     const spawnPowerup = (onCollected) => {
-        if (activePowerup || isShooting) return;
+        if (activePowerup) return;
 
         const mesh = BABYLON.MeshBuilder.CreateSphere('rocketShooterPowerup', { diameter: 0.8 }, scene);
         mesh.position.set(0, CONFIG.spawnHeight, 0);
@@ -66,22 +70,14 @@ export const createRocketShooter = (scene, rocketship, camera, projectileManager
         mesh.physicsImpostor = new BABYLON.PhysicsImpostor(
             mesh,
             BABYLON.PhysicsImpostor.SphereImpostor,
-            { mass: 1, restitution: 0.3, friction: 0.0 },
+            { mass: 1},
             scene
         );
-
-        const body = mesh.physicsImpostor.physicsBody;
-        if (body) {
-            body.collisionFilterGroup = CONFIG.colGroup;
-            body.collisionFilterMask = CONFIG.colMask;
-            body.collisionResponse = 0;
-            body.fixedRotation = true;
-            body.updateMassProperties();
-        }
 
         mesh.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, CONFIG.fallSpeed, 0));
         activePowerup = mesh;
 
+        //collision met rocketship hitbox en anders met rockethship zelf
         const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
 
         if (collisionMesh.physicsImpostor) {
@@ -98,17 +94,15 @@ export const createRocketShooter = (scene, rocketship, camera, projectileManager
         const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
         const powerupToRemove = activePowerup;
 
-        //zet direct op null om dubbele triggers te voorkomen
+        //direct null zetten als powerup wordt gepakt
         activePowerup = null;
 
-        //unregister collision direct
         if (collisionMesh.physicsImpostor && powerupToRemove.physicsImpostor && collisionCallback) {
             collisionMesh.physicsImpostor.unregisterOnPhysicsCollide(powerupToRemove.physicsImpostor, collisionCallback);
             collisionCallback = null;
         }
 
-        //veilig verwijderen (Babylon manier):
-        //wacht tot NA de physics step om te disposen.
+        //veilig verwijderen
         scene.onAfterPhysicsObservable.addOnce(() => {
             if (powerupToRemove) {
                 if (powerupToRemove.physicsImpostor) powerupToRemove.physicsImpostor.dispose();
@@ -129,14 +123,12 @@ export const createRocketShooter = (scene, rocketship, camera, projectileManager
                 activePowerup.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
                 activePowerup.physicsImpostor.setAngularVelocity(BABYLON.Vector3.Zero());
                 activePowerup.position.y = CONFIG.hoverHeight;
-                activePowerup.rotation.setAll(0);
                 activePowerup.physicsImpostor.forceUpdate();
             }
         }
 
         if (isShooting && projectileManager) {
             shootTimer += dt;
-
             if (shootTimer >= CONFIG.fireRate) {
                 shootTimer = 0;
                 projectileManager.shootProjectile(
@@ -149,22 +141,43 @@ export const createRocketShooter = (scene, rocketship, camera, projectileManager
         }
     });
 
+    //reset functie voor level restarts
+    const reset = () => {
+        if (activePowerup) {
+            const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
+            const powerupToRemove = activePowerup;
+            activePowerup = null;
+
+            //stop de engine voor collisions te watchen
+            if (collisionMesh.physicsImpostor && collisionCallback) {
+                collisionMesh.physicsImpostor.unregisterOnPhysicsCollide(collisionCallback);
+                collisionCallback = null;
+            }
+
+            //veilig verwijderen
+            scene.onAfterPhysicsObservable.addOnce(() => {
+                if (powerupToRemove) {
+                    if (powerupToRemove.physicsImpostor) powerupToRemove.physicsImpostor.dispose();
+                    powerupToRemove.dispose();
+                }
+            });
+        }
+        isShooting = false;
+        shootTimer = 0;
+    };
+
     const cleanup = () => {
         if (updateObserver) {
             scene.onBeforeRenderObservable.remove(updateObserver);
             updateObserver = null;
         }
-        if (activePowerup) {
-            if (activePowerup.physicsImpostor) activePowerup.physicsImpostor.dispose();
-            activePowerup.dispose();
-            activePowerup = null;
-        }
+        reset();
         if (uiTexture) uiTexture.dispose();
-        isShooting = false;
     };
 
     return {
         spawnPowerup,
+        reset,
         cleanup,
         isActive: () => isShooting
     };

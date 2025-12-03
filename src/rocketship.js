@@ -89,12 +89,12 @@ export const createRocketship = async (scene) => {
 };
 
 export const setupRocketshipPhysics = (scene, spaceship, inputWrapper) => {
-    const maxSpeed = 20.0;
-    const accelRate = 0.20;
-    const brakeRate = 0.30;
+    const maxSpeed = 25.0;
+    const accelRate = 0.50;
+    const brakeRate = 0.20;
 
-    const maxSensorTilt = 30;
-    const deadZone = 0.5;
+    const maxSensorTilt = 15;
+    const deadZone = 0.4;
 
     const shipHalfWidth = 1.0;
 

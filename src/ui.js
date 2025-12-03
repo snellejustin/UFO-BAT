@@ -1,11 +1,10 @@
 import { connectToWitMotion } from './witmotion.js';
 import * as GUI from '@babylonjs/gui';
+import * as BABYLON from '@babylonjs/core';
 
 export const createHealthBarUI = (scene) => {
-    // AdvancedDynamicTexture aanmaken (Fullscreen)
     const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("HealthUI", true, scene);
 
-    // 1. Rudy Character Image
     const rudyImage = new GUI.Image("rudyImage", "assets/images/UIexportRudy.png");
     rudyImage.width = "240px";
     rudyImage.height = "180px";
@@ -15,7 +14,6 @@ export const createHealthBarUI = (scene) => {
     rudyImage.top = "-30px";
     guiTexture.addControl(rudyImage);
 
-    // 2. Health Bar Background (Lege bar image)
     const healthBarBgImage = new GUI.Image("healthBarBg", "assets/images/UIexportHealthbar.png");
     healthBarBgImage.width = "250px";
     healthBarBgImage.height = "60px";
@@ -25,16 +23,14 @@ export const createHealthBarUI = (scene) => {
     healthBarBgImage.top = "-40px";
     guiTexture.addControl(healthBarBgImage);
 
-    // 3. Container voor de 'Fill' (De groene balk zelf)
     const healthBarContainer = new GUI.Rectangle("healthBarContainer");
-    healthBarContainer.width = "170px"; // Breedte van het 'vulbare' gedeelte in je plaatje
-    healthBarContainer.height = "20px"; // Hoogte van het vulbare gedeelte
+    healthBarContainer.width = "170px";
+    healthBarContainer.height = "20px";
     healthBarContainer.cornerRadius = 4;
     healthBarContainer.color = "transparent";
     healthBarContainer.thickness = 0;
     healthBarContainer.background = "transparent";
 
-    // Positionering (moet precies over het lege gedeelte van je achtergrondplaatje vallen)
     healthBarContainer.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
     healthBarContainer.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
     healthBarContainer.left = "290px";
@@ -42,14 +38,13 @@ export const createHealthBarUI = (scene) => {
 
     guiTexture.addControl(healthBarContainer);
 
-    // 4. De Inner Bar (Het bewegende deel)
     const healthBarInner = new GUI.Rectangle("healthBarInner");
-    healthBarInner.width = "100%"; // Start vol (100% als string!)
+    healthBarInner.width = "100%";
     healthBarInner.height = "100%";
     healthBarInner.cornerRadius = 2;
     healthBarInner.thickness = 0;
     healthBarInner.background = "#00ff00";
-    healthBarInner.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT; // Zorg dat hij links uitlijnt zodat hij naar rechts krimpt
+    healthBarInner.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
 
     healthBarContainer.addControl(healthBarInner);
 
@@ -57,12 +52,9 @@ export const createHealthBarUI = (scene) => {
         guiTexture,
         healthBarInner,
         updateHealthBar: (healthPercent) => {
-            // FIX: Babylon GUI verwacht strings voor percentages (bijv "50%")
-            // healthPercent is 0.0 tot 1.0
             const percent = Math.max(0, Math.min(1, healthPercent)) * 100;
             healthBarInner.width = `${percent}%`;
 
-            // Kleur logic
             if (healthPercent > 0.6) healthBarInner.background = "#00ff00";
             else if (healthPercent > 0.3) healthBarInner.background = "#ffff00";
             else healthBarInner.background = "#ff0000";
@@ -76,7 +68,6 @@ export const createHealthBarUI = (scene) => {
 export const createLevelProgressBar = (scene, totalLevels = 5) => {
     const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("LevelProgressUI", true, scene);
 
-    // Progress bar background (vertical bar on the right side)
     const progressBarBg = new GUI.Rectangle("progressBarBg");
     progressBarBg.width = "30px";
     progressBarBg.height = "400px";
@@ -86,23 +77,21 @@ export const createLevelProgressBar = (scene, totalLevels = 5) => {
     progressBarBg.background = "#202020";
     progressBarBg.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
     progressBarBg.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
-    progressBarBg.left = "-30px"; // 30px from right edge
+    progressBarBg.left = "-30px";
     progressBarBg.top = "0px";
     guiTexture.addControl(progressBarBg);
 
-    // Progress fill (grows from bottom to top)
     const progressFill = new GUI.Rectangle("progressFill");
     progressFill.width = "100%";
-    progressFill.height = "0%"; // Start at 0%
+    progressFill.height = "0%";
     progressFill.cornerRadius = 15;
     progressFill.thickness = 0;
     progressFill.background = "#00ff00";
     progressFill.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
     progressBarBg.addControl(progressFill);
 
-    // Create checkpoints (circles)
     const checkpoints = [];
-    const checkpointSpacing = 400 / (totalLevels + 1); // Evenly space checkpoints
+    const checkpointSpacing = 400 / (totalLevels + 1);
 
     for (let i = 0; i < totalLevels; i++) {
         const checkpoint = new GUI.Ellipse(`checkpoint${i}`);
@@ -110,12 +99,11 @@ export const createLevelProgressBar = (scene, totalLevels = 5) => {
         checkpoint.height = "20px";
         checkpoint.color = "white";
         checkpoint.thickness = 3;
-        checkpoint.background = "#404040"; // Uncompleted color
+        checkpoint.background = "#404040";
         checkpoint.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
         checkpoint.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
-        // Position from bottom to top (first checkpoint at bottom)
-        checkpoint.top = `-${checkpointSpacing * (i + 1) - 10}px`; // Negative for bottom alignment
-        
+        checkpoint.top = `-${checkpointSpacing * (i + 1) - 10}px`;
+
         progressBarBg.addControl(checkpoint);
         checkpoints.push(checkpoint);
     }
@@ -125,18 +113,14 @@ export const createLevelProgressBar = (scene, totalLevels = 5) => {
         progressFill,
         checkpoints,
         updateProgress: (currentLevel) => {
-            // Update progress fill height
             const progressPercent = (currentLevel / totalLevels) * 100;
             progressFill.height = `${progressPercent}%`;
 
-            // Update checkpoint colors
             checkpoints.forEach((checkpoint, index) => {
                 if (index < currentLevel) {
-                    // Completed checkpoint
                     checkpoint.background = "#00ff00";
                     checkpoint.color = "#00ff00";
                 } else {
-                    // Not yet completed
                     checkpoint.background = "#404040";
                     checkpoint.color = "white";
                 }
@@ -148,12 +132,101 @@ export const createLevelProgressBar = (scene, totalLevels = 5) => {
     };
 };
 
+export const createGameOverScreen = (scene, onRestart, onQuit) => {
+    const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("GameOverUI", true, scene);
+
+    // Dark background overlay
+    const overlay = new GUI.Rectangle();
+    overlay.width = 1;
+    overlay.height = 1;
+    overlay.background = "black";
+    overlay.alpha = 0.8;
+    overlay.thickness = 0;
+    guiTexture.addControl(overlay);
+
+    // Container for the menu items
+    const panel = new GUI.StackPanel();
+    guiTexture.addControl(panel);
+
+    // Game Over Title
+    const titleText = new GUI.TextBlock();
+    titleText.text = "GAME OVER";
+    titleText.color = "#ff0000";
+    titleText.fontSize = 80;
+    titleText.fontWeight = "bold";
+    titleText.height = "150px";
+    titleText.shadowColor = "#880000";
+    titleText.shadowBlur = 10;
+    panel.addControl(titleText);
+
+    // Spacer
+    const spacer1 = new GUI.Rectangle();
+    spacer1.height = "40px";
+    spacer1.thickness = 0;
+    panel.addControl(spacer1);
+
+    // Helper to create styled buttons
+    const createButton = (name, text, bgColor) => {
+        const button = GUI.Button.CreateSimpleButton(name, text);
+        button.width = "250px";
+        button.height = "70px";
+        button.color = "white";
+        button.background = bgColor;
+        button.cornerRadius = 10;
+        button.fontSize = 30;
+        button.fontWeight = "bold";
+        button.thickness = 2;
+
+        // Hover effects
+        button.onPointerEnterObservable.add(() => {
+            button.scaleX = 1.1;
+            button.scaleY = 1.1;
+        });
+        button.onPointerOutObservable.add(() => {
+            button.scaleX = 1.0;
+            button.scaleY = 1.0;
+        });
+
+        return button;
+    };
+
+    // Restart Button
+    const restartBtn = createButton("restartBtn", "RESTART", "#008800"); // Green
+    restartBtn.onPointerUpObservable.add(() => {
+        cleanup();
+        if (onRestart) onRestart();
+    });
+    panel.addControl(restartBtn);
+
+    // Spacer
+    const spacer2 = new GUI.Rectangle();
+    spacer2.height = "30px";
+    spacer2.thickness = 0;
+    panel.addControl(spacer2);
+
+    // Quit Button
+    const quitBtn = createButton("quitBtn", "QUIT", "#cc0000"); // Red
+    quitBtn.onPointerUpObservable.add(() => {
+        cleanup();
+        if (onQuit) onQuit();
+    });
+    panel.addControl(quitBtn);
+
+    const cleanup = () => {
+        if (guiTexture) guiTexture.dispose();
+    };
+
+    return {
+        guiTexture,
+        dispose: cleanup
+    };
+};
+
 export const createPlayButton = (countdown, levelManager) => {
     const gameState = {
         isPlaying: false,
     };
 
-    // HTML Overlay Container
     const uiContainer = document.createElement('div');
     uiContainer.id = 'ui-container';
     uiContainer.style.cssText = `
@@ -165,12 +238,11 @@ export const createPlayButton = (countdown, levelManager) => {
         display: flex;
         justify-content: center;
         align-items: center;
-        pointer-events: none; /* Kliks gaan erdoorheen waar geen knop zit */
+        pointer-events: none; 
         z-index: 1000;
     `;
     document.body.appendChild(uiContainer);
 
-    // De Knop
     const playButton = document.createElement('button');
     playButton.textContent = 'PLAY';
     playButton.id = 'play-button';
@@ -183,7 +255,7 @@ export const createPlayButton = (countdown, levelManager) => {
         border: none;
         border-radius: 10px;
         cursor: pointer;
-        pointer-events: auto; /* Zorg dat de knop wel klikbaar is */
+        pointer-events: auto; 
         box-shadow: 0 0 20px rgba(0, 255, 0, 0.7);
         transition: all 0.3s ease;
         font-family: 'Arial', sans-serif;
@@ -202,18 +274,14 @@ export const createPlayButton = (countdown, levelManager) => {
     });
 
     playButton.addEventListener('click', async () => {
-        // Probeer sensors te verbinden
         try {
             await connectToWitMotion();
         } catch (e) {
             console.warn("Witmotion connection cancelled or failed", e);
-            // We gaan door, ook als sensor faalt (fallback naar keyboard)
         }
 
-        // Verberg UI
         uiContainer.style.display = 'none';
 
-        // Start countdown -> start game
         countdown.startCountdown(() => {
             gameState.isPlaying = true;
             levelManager.startFirstLevel();

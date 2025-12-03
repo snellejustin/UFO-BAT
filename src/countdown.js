@@ -6,7 +6,7 @@ export const createCountdown = (scene) => {
 
     const countText = new GUI.TextBlock();
     countText.text = "";
-    countText.color = "#00ff00"; // Neon Green
+    countText.color = "#00ff00";
     countText.fontSize = 120;
     countText.fontFamily = "Arial, sans-serif";
     countText.fontWeight = "bold";

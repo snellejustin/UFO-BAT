@@ -1,53 +1,51 @@
 import * as BABYLON from '@babylonjs/core';
+import * as GUI from '@babylonjs/gui';
 import '@babylonjs/loaders/glTF';
 
 const SHIELD_CONFIG = {
-    scale: 0.5,
-    spawnHeight: 20,
+    scale: 0.7,
+    spawnHeight: 15,
     spawnWidthRange: 10,
     fallSpeed: -4,
     rotationSpeed: 2,
     hitboxDiameter: 1,
     duration: 10000,
-    flickerInterval: 200,
     despawnHeight: -5,
-
     color: {
         emissive: new BABYLON.Color3(0, 0.2, 0.5)
     },
-
     physics: {
         mass: 1,
         restitution: 0.5,
         friction: 0.3
     },
-
     popup: {
         text: 'SHIELD ACTIVE',
         color: '#00BFFF',
-        fontSize: '28px',
+        fontSize: 28,
         yOffset: -50,
         duration: 1000
     },
-
     timer: {
-        fontSize: '24px',
+        fontSize: 24,
         color: '#00BFFF',
         position: { top: '120px', right: '40px' }
     }
 };
 
-export function createShield(scene, rocketship, camera) {
+export const createShield = (scene, rocketship, camera) => {
     let powerup = null;
     let shieldModel = null;
     let isModelLoaded = false;
     let isShieldActive = false;
-    let shieldTimeout = null;
-    let flickerInterval = null;
+
+    let shieldTimerObserver = null;
     let timerElement = null;
-    let timerInterval = null;
-    let shieldEndTime = 0;
-    let updateObserver = null; // Track observer for cleanup
+
+    let updateObserver = null;
+    let collisionCallback = null;
+
+    const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("shieldUI", true, scene);
 
     const loadShieldModel = async () => {
         try {
@@ -58,13 +56,10 @@ export function createShield(scene, rocketship, camera) {
                 scene
             );
 
+            //mesh zoeken en opslaan
             shieldModel = result.meshes[0];
             shieldModel.name = "shield_source";
             shieldModel.setEnabled(false);
-
-            result.meshes.forEach(mesh => {
-                mesh.setEnabled(false);
-            });
 
             isModelLoaded = true;
         } catch (error) {
@@ -74,55 +69,37 @@ export function createShield(scene, rocketship, camera) {
 
     loadShieldModel();
 
-    // Helper function to check if position is safe (no asteroids nearby)
     const isSafeSpawnPosition = (x, asteroidSystem) => {
         if (!asteroidSystem?.manager?.active) return true;
-        
-        const minSafeDistance = 3; // Minimum distance from asteroids
-        
+        const minSafeDistance = 4;
         for (const asteroid of asteroidSystem.manager.active) {
             const asteroidX = asteroid.position.x;
             const asteroidY = asteroid.position.y;
-            
-            // Check if asteroid is near spawn height and X position
-            if (asteroidY > SHIELD_CONFIG.spawnHeight - 3 && 
-                asteroidY < SHIELD_CONFIG.spawnHeight + 3) {
+            if (asteroidY > SHIELD_CONFIG.spawnHeight - 4 &&
+                asteroidY < SHIELD_CONFIG.spawnHeight + 4) {
                 const distance = Math.abs(asteroidX - x);
-                if (distance < minSafeDistance) {
-                    return false;
-                }
+                if (distance < minSafeDistance) return false;
             }
         }
         return true;
     };
 
     const spawnPowerup = (asteroidSystem = null) => {
-        console.log('[SHIELD] spawnPowerup called, isModelLoaded:', isModelLoaded);
         if (!isModelLoaded) return;
-        
-        if (powerup) {
-            powerup.dispose();
-        }
 
-        //clone the shield model
-        const visualMesh = shieldModel.clone('shield_visual');
+        //instantiateHierarchy in plaats van clone + loop.
+        //behoudt de parent-child structuur van het complexe shield model.
+        const visualMesh = shieldModel.instantiateHierarchy();
+        visualMesh.name = 'shield_visual';
         visualMesh.setEnabled(true);
+
         visualMesh.scaling.setAll(SHIELD_CONFIG.scale);
         visualMesh.rotation = new BABYLON.Vector3(
             Math.random() * Math.PI * 2,
             Math.random() * Math.PI * 2,
             Math.random() * Math.PI * 2
         );
-        
-        // console.log('[SHIELD] Visual mesh created:', visualMesh.name, 'rotation:', visualMesh.rotation);
 
-        shieldModel.getChildMeshes().forEach(childMesh => {
-            const clonedChild = childMesh.clone(childMesh.name + '_clone');
-            clonedChild.parent = visualMesh;
-            clonedChild.setEnabled(true);
-        });
-
-        //invisible hitbox zoals bij asteroids
         const hitbox = BABYLON.MeshBuilder.CreateSphere(
             "shieldHitbox",
             { diameter: SHIELD_CONFIG.hitboxDiameter },
@@ -130,16 +107,11 @@ export function createShield(scene, rocketship, camera) {
         );
         hitbox.isVisible = false;
 
-        // Try to find a safe spawn position (max 10 attempts)
         let spawnX = 0;
-        let attempts = 0;
-        const maxAttempts = 10;
-        
         do {
             spawnX = (Math.random() - 0.5) * SHIELD_CONFIG.spawnWidthRange;
-            attempts++;
-        } while (!isSafeSpawnPosition(spawnX, asteroidSystem) && attempts < maxAttempts);
-        
+        } while (!isSafeSpawnPosition(spawnX, asteroidSystem));
+
         visualMesh.position.set(spawnX, SHIELD_CONFIG.spawnHeight, 0);
         hitbox.position.copyFrom(visualMesh.position);
 
@@ -152,157 +124,180 @@ export function createShield(scene, rocketship, camera) {
 
         hitbox.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, SHIELD_CONFIG.fallSpeed, 0));
 
-        //visual en hitbox linken
+        //koppel hitbox aan visual mesh
         visualMesh.physicsImpostor = hitbox.physicsImpostor;
         visualMesh.metadata = { hitbox: hitbox };
-        
+
         powerup = visualMesh;
 
+        //check voor hitbox van rocketship te krijgen, anders gewoon rocketship zelf gebruiken
         const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
 
-        collisionMesh.physicsImpostor.registerOnPhysicsCollide(hitbox.physicsImpostor, () => {
+        collisionCallback = () => {
             if (powerup) {
                 activateShield();
-                showShieldPopup(camera);
+                showShieldPopup();
 
-                const hitboxToDispose = powerup.metadata?.hitbox;
-                if (hitboxToDispose) {
-                    hitboxToDispose.dispose();
-                }
-                powerup.dispose();
+                const powerupToRemove = powerup;
                 powerup = null;
+
+                //niet meerdere keren getriggerd kan worden
+                if (collisionMesh.physicsImpostor && powerupToRemove.physicsImpostor) {
+                    collisionMesh.physicsImpostor.unregisterOnPhysicsCollide(powerupToRemove.physicsImpostor, collisionCallback);
+                }
+                collisionCallback = null;
+
+                //veilig verwijderen
+                scene.onAfterPhysicsObservable.addOnce(() => {
+                    const hitboxToDispose = powerupToRemove.metadata?.hitbox;
+                    if (hitboxToDispose) {
+                        if (hitboxToDispose.physicsImpostor) hitboxToDispose.physicsImpostor.dispose();
+                        hitboxToDispose.dispose();
+                    }
+                    powerupToRemove.dispose();
+                });
             }
-        });
+        };
+        //registreer collision van rocketship met hitbox van powerup
+        collisionMesh.physicsImpostor.registerOnPhysicsCollide(hitbox.physicsImpostor, collisionCallback);
     };
 
     const activateShield = () => {
-        if (shieldTimeout) clearTimeout(shieldTimeout);
-        if (flickerInterval) clearInterval(flickerInterval);
-        if (timerInterval) clearInterval(timerInterval);
-
-        isShieldActive = true;
-        shieldEndTime = Date.now() + SHIELD_CONFIG.duration;
-
-        const visualMesh = rocketship;
-        if (!visualMesh.metadata.originalEmissive) {
-            visualMesh.metadata.originalEmissive = visualMesh.material?.emissiveColor?.clone() || new BABYLON.Color3(0, 0, 0);
+        if (shieldTimerObserver) {
+            scene.onBeforeRenderObservable.remove(shieldTimerObserver);
+            shieldTimerObserver = null;
         }
 
-        let flickerState = false;
-        flickerInterval = setInterval(() => {
-            if (visualMesh.material) {
-                visualMesh.material.emissiveColor = flickerState
-                    ? SHIELD_CONFIG.color.emissive
-                    : visualMesh.metadata.originalEmissive;
-                flickerState = !flickerState;
+        isShieldActive = true;
+        let timeRemaining = SHIELD_CONFIG.duration / 1000;
+
+        createShieldTimerUI();
+
+        //babylon timer loop
+        shieldTimerObserver = scene.onBeforeRenderObservable.add(() => {
+            //berekenen tijd via engine delta time (soepeler)
+            const dt = scene.getEngine().getDeltaTime() / 1000;
+            timeRemaining -= dt;
+
+            if (timerElement) {
+                timerElement.text = `Shield ${Math.ceil(timeRemaining)}s`;
             }
-        }, SHIELD_CONFIG.flickerInterval);
-
-        showShieldTimer();
-
-        shieldTimeout = setTimeout(() => {
-            deactivateShield();
-        }, SHIELD_CONFIG.duration);
+            if (timeRemaining <= 0) {
+                deactivateShield();
+            }
+        });
     };
 
     const deactivateShield = () => {
         isShieldActive = false;
 
-        if (flickerInterval) {
-            clearInterval(flickerInterval);
-            flickerInterval = null;
+        if (shieldTimerObserver) {
+            scene.onBeforeRenderObservable.remove(shieldTimerObserver);
+            shieldTimerObserver = null;
         }
 
-        if (timerInterval) {
-            clearInterval(timerInterval);
-            timerInterval = null;
+        //verwijder UI
+        if (timerElement) {
+            guiTexture.removeControl(timerElement);
+            timerElement.dispose();
+            timerElement = null;
+        }
+    };
+
+    const createShieldTimerUI = () => {
+        //oude opruimen voor de zekerheid
+        if (timerElement) {
+            guiTexture.removeControl(timerElement);
+            timerElement.dispose();
+        }
+
+        timerElement = new GUI.TextBlock();
+        timerElement.color = SHIELD_CONFIG.timer.color;
+        timerElement.fontSize = SHIELD_CONFIG.timer.fontSize;
+        timerElement.fontWeight = "bold";
+
+        timerElement.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+        timerElement.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+        timerElement.top = SHIELD_CONFIG.timer.position.top;
+        timerElement.left = `-${SHIELD_CONFIG.timer.position.right}`;
+
+        //startwaarde
+        timerElement.text = `Shield ${SHIELD_CONFIG.duration / 1000}s`;
+
+        guiTexture.addControl(timerElement);
+    };
+
+    const showShieldPopup = () => {
+        const textBlock = new GUI.TextBlock();
+        textBlock.text = SHIELD_CONFIG.popup.text;
+        textBlock.color = SHIELD_CONFIG.popup.color;
+        textBlock.fontSize = SHIELD_CONFIG.popup.fontSize;
+        textBlock.fontWeight = "bold";
+        textBlock.outlineWidth = 2;
+        textBlock.outlineColor = "black";
+
+        guiTexture.addControl(textBlock);
+
+        textBlock.linkWithMesh(rocketship);
+        textBlock.linkOffsetY = SHIELD_CONFIG.popup.yOffset;
+
+        let alpha = 1.0;
+        let offset = SHIELD_CONFIG.popup.yOffset;
+
+        const observer = scene.onBeforeRenderObservable.add(() => {
+            offset -= 2;
+            alpha -= 0.02;
+
+            textBlock.linkOffsetY = offset;
+            textBlock.alpha = alpha;
+
+            if (alpha <= 0) {
+                guiTexture.removeControl(textBlock);
+                textBlock.dispose();
+                scene.onBeforeRenderObservable.remove(observer);
+            }
+        });
+    };
+
+    //reset functie voor level restarts
+    const reset = () => {
+        //stop de babylon timer observer
+        if (shieldTimerObserver) {
+            scene.onBeforeRenderObservable.remove(shieldTimerObserver);
+            shieldTimerObserver = null;
         }
 
         if (timerElement) {
-            timerElement.remove();
+            guiTexture.removeControl(timerElement);
+            timerElement.dispose();
             timerElement = null;
         }
 
-        const visualMesh = rocketship;
-        if (visualMesh.material && visualMesh.metadata.originalEmissive) {
-            visualMesh.material.emissiveColor = visualMesh.metadata.originalEmissive;
-        }
-    };
+        deactivateShield();
 
-    const showShieldTimer = () => {
-        if (timerElement) {
-            timerElement.remove();
-        }
+        if (powerup) {
+            const powerupToRemove = powerup;
+            powerup = null;
 
-        timerElement = document.createElement('div');
-        timerElement.style.cssText = `
-            position: fixed;
-            top: ${SHIELD_CONFIG.timer.position.top};
-            right: ${SHIELD_CONFIG.timer.position.right};
-            font-size: ${SHIELD_CONFIG.timer.fontSize};
-            font-weight: bold;
-            color: ${SHIELD_CONFIG.timer.color};
-            text-shadow: 0 0 10px ${SHIELD_CONFIG.timer.color}, 0 0 20px ${SHIELD_CONFIG.timer.color};
-            pointer-events: none;
-            z-index: 1000;
-        `;
-        document.body.appendChild(timerElement);
-
-        timerInterval = setInterval(() => {
-            const remaining = Math.max(0, Math.ceil((shieldEndTime - Date.now()) / 1000));
-            timerElement.textContent = `Shield ${remaining}s`;
-
-            if (remaining <= 0) {
-                clearInterval(timerInterval);
+            //stop de engine voor collisions te watchen
+            const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
+            if (collisionCallback && powerupToRemove.physicsImpostor) {
+                collisionMesh.physicsImpostor.unregisterOnPhysicsCollide(powerupToRemove.physicsImpostor, collisionCallback);
             }
-        }, 100);
+            collisionCallback = null;
+
+            //veilig verwijderen
+            scene.onAfterPhysicsObservable.addOnce(() => {
+                const hitboxToDispose = powerupToRemove.metadata?.hitbox;
+                if (hitboxToDispose) {
+                    if (hitboxToDispose.physicsImpostor) hitboxToDispose.physicsImpostor.dispose();
+                    hitboxToDispose.dispose();
+                }
+                powerupToRemove.dispose();
+            });
+        }
     };
 
-    const showShieldPopup = (camera) => {
-        const popupWorldPos = new BABYLON.Vector3(
-            rocketship.position.x,
-            rocketship.position.y + 1.2,
-            rocketship.position.z
-        );
-
-        const engine = scene.getEngine();
-        const screenPos = BABYLON.Vector3.Project(
-            popupWorldPos,
-            BABYLON.Matrix.Identity(),
-            scene.getTransformMatrix(),
-            camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight())
-        );
-
-        const popup = document.createElement('div');
-        popup.textContent = SHIELD_CONFIG.popup.text;
-        popup.style.cssText = `
-            position: fixed;
-            left: ${screenPos.x}px;
-            top: ${screenPos.y + SHIELD_CONFIG.popup.yOffset}px;
-            transform: translate(-50%, -100%);
-            font-size: ${SHIELD_CONFIG.popup.fontSize};
-            font-weight: bold;
-            color: ${SHIELD_CONFIG.popup.color};
-            text-shadow: 0 0 10px ${SHIELD_CONFIG.popup.color}, 0 0 20px ${SHIELD_CONFIG.popup.color};
-            pointer-events: none;
-            z-index: 1000;
-        `;
-        document.body.appendChild(popup);
-
-        let yOffset = 0;
-        const animationInterval = setInterval(() => {
-            yOffset += 2;
-            popup.style.top = `${screenPos.y + SHIELD_CONFIG.popup.yOffset - yOffset}px`;
-            popup.style.opacity = `${1 - yOffset / 60}`;
-        }, 16);
-
-        setTimeout(() => {
-            clearInterval(animationInterval);
-            popup.remove();
-        }, SHIELD_CONFIG.popup.duration);
-    };
-
-    // Clean up old observer if it exists
     if (updateObserver) {
         scene.onBeforeRenderObservable.remove(updateObserver);
     }
@@ -310,42 +305,35 @@ export function createShield(scene, rocketship, camera) {
     updateObserver = scene.onBeforeRenderObservable.add(() => {
         if (powerup) {
             const hitbox = powerup.metadata?.hitbox;
-            
             if (hitbox) {
+                //synchroniseer positie
                 powerup.position.copyFrom(hitbox.position);
-                
-                //despawn deathzone
+                powerup.rotation.z += 0.03;
+
+                //despawn als hij te laag komt
                 if (hitbox.position.y < SHIELD_CONFIG.despawnHeight) {
-                    // console.log('[SHIELD] Despawning at y:', hitbox.position.y);
-                    hitbox.dispose();
-                    powerup.dispose();
-                    powerup = null;
-                    return;
+                    reset();
                 }
             }
-          
-            powerup.rotation.z += 0.03;
+            
         }
     });
+
+    const cleanup = () => {
+        reset();
+        if (updateObserver) {
+            scene.onBeforeRenderObservable.remove(updateObserver);
+            updateObserver = null;
+        }
+        if (guiTexture) {
+            guiTexture.dispose();
+        }
+    };
 
     return {
         spawnPowerup,
         isShieldActive: () => isShieldActive,
-        cleanup: () => {
-            if (updateObserver) {
-                scene.onBeforeRenderObservable.remove(updateObserver);
-                updateObserver = null;
-            }
-            if (shieldTimeout) clearTimeout(shieldTimeout);
-            if (flickerInterval) clearInterval(flickerInterval);
-            if (timerInterval) clearInterval(timerInterval);
-            if (timerElement) timerElement.remove();
-            if (powerup) {
-                const hitboxToDispose = powerup.metadata?.hitbox;
-                if (hitboxToDispose) hitboxToDispose.dispose();
-                powerup.dispose();
-                powerup = null;
-            }
-        }
+        reset,
+        cleanup
     };
 }

@@ -204,10 +204,27 @@ export const createProjectileManager = (scene) => {
         if (rocketMaterial) rocketMaterial.dispose();
     };
 
+    const reset = () => {
+        // Recycle all active projectiles
+        pool.forEach(proj => {
+            if (proj.active) {
+                recycleProjectile(proj);
+            }
+        });
+        
+        // Clear removal queue
+        removalQueue.length = 0;
+        
+        // Reset to default config
+        currentConfig = { size: 0.2, color: { r: 0.063, g: 0.992, b: 0.847 }, glowIntensity: 1.0 };
+        updateUfoMaterial();
+    };
+
     return {
         shootProjectile,
         setProjectileConfig,
         update,
+        reset,
         cleanup,
         getActiveProjectiles: () => pool.filter(p => p.active).map(p => p.mesh),
         removeProjectile: disableAndRemove,

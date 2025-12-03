@@ -1,9 +1,10 @@
 import * as BABYLON from '@babylonjs/core';
+import * as GUI from '@babylonjs/gui';
 import '@babylonjs/loaders/glTF';
 
 const HEALTH_BOOST_CONFIG = {
-    scale: 0.5,
-    spawnHeight: 20,
+    scale: 0.7,
+    spawnHeight: 15,
     spawnWidthRange: 10,
     fallSpeed: -4,
     rotationSpeed: 2,
@@ -11,30 +12,30 @@ const HEALTH_BOOST_CONFIG = {
     healAmount: 50,
     maxHealth: 100,
     despawnHeight: -5,
-
-    color: {
-        emissive: new BABYLON.Color3(0.3, 0, 0)
-    },
-
     physics: {
         mass: 1,
         restitution: 0.5,
         friction: 0.3
     },
-
     popup: {
         color: '#00FF00',
         fontSize: '32px',
         yOffset: -30,
         duration: 1000
-    }
+    },
+    color: {
+        emissive: new BABYLON.Color3(0, 0.2, 0.5)
+    },
 };
 
-export function createHealthBoost(scene, rocketship, healthManager, camera) {
+export const createHealthBoost = (scene, rocketship, healthManager, camera) => {
     let powerup = null;
     let healthBoostModel = null;
     let isModelLoaded = false;
-    let updateObserver = null; // Track observer for cleanup
+    let updateObserver = null;
+    let collisionCallback = null;
+
+    const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("healthBoostUI", true, scene);
 
     const loadHealthBoostModel = async () => {
         try {
@@ -45,13 +46,10 @@ export function createHealthBoost(scene, rocketship, healthManager, camera) {
                 scene
             );
 
+            //mesh zoeken en opslaan
             healthBoostModel = result.meshes[0];
             healthBoostModel.name = "healthBoost_source";
             healthBoostModel.setEnabled(false);
-
-            result.meshes.forEach(mesh => {
-                mesh.setEnabled(false);
-            });
 
             isModelLoaded = true;
         } catch (error) {
@@ -61,37 +59,24 @@ export function createHealthBoost(scene, rocketship, healthManager, camera) {
 
     loadHealthBoostModel();
 
-    // Helper function to check if position is safe (no asteroids nearby)
     const isSafeSpawnPosition = (x, asteroidSystem) => {
         if (!asteroidSystem?.manager?.active) return true;
-        
-        const minSafeDistance = 3; // Minimum distance from asteroids
-        
+        const minSafeDistance = 4;
         for (const asteroid of asteroidSystem.manager.active) {
             const asteroidX = asteroid.position.x;
             const asteroidY = asteroid.position.y;
-            
-            // Check if asteroid is near spawn height and X position
-            if (asteroidY > HEALTH_BOOST_CONFIG.spawnHeight - 3 && 
-                asteroidY < HEALTH_BOOST_CONFIG.spawnHeight + 3) {
+            if (asteroidY > HEALTH_BOOST_CONFIG.spawnHeight - 4 &&
+                asteroidY < HEALTH_BOOST_CONFIG.spawnHeight + 4) {
                 const distance = Math.abs(asteroidX - x);
-                if (distance < minSafeDistance) {
-                    return false;
-                }
+                if (distance < minSafeDistance) return false;
             }
         }
         return true;
     };
 
     const spawnPowerup = (asteroidSystem = null) => {
-        console.log('[HEALTH BOOST] spawnPowerup called, isModelLoaded:', isModelLoaded);
         if (!isModelLoaded) return;
-        
-        if (powerup) {
-            powerup.dispose();
-        }
 
-        // Clone the health boost model
         const visualMesh = healthBoostModel.clone('healthBoost_visual');
         visualMesh.setEnabled(true);
         visualMesh.scaling.setAll(HEALTH_BOOST_CONFIG.scale);
@@ -100,9 +85,8 @@ export function createHealthBoost(scene, rocketship, healthManager, camera) {
             Math.random() * Math.PI * 2,
             Math.random() * Math.PI * 2
         );
-        
-        // console.log('[HEALTH BOOST] Visual mesh created:', visualMesh.name, 'rotation:', visualMesh.rotation);
 
+        //clone alle child meshes
         healthBoostModel.getChildMeshes().forEach(childMesh => {
             const clonedChild = childMesh.clone(childMesh.name + '_clone');
             clonedChild.parent = visualMesh;
@@ -116,16 +100,11 @@ export function createHealthBoost(scene, rocketship, healthManager, camera) {
         );
         hitbox.isVisible = false;
 
-        // Try to find a safe spawn position (max 10 attempts)
         let spawnX = 0;
-        let attempts = 0;
-        const maxAttempts = 10;
-        
         do {
             spawnX = (Math.random() - 0.5) * HEALTH_BOOST_CONFIG.spawnWidthRange;
-            attempts++;
-        } while (!isSafeSpawnPosition(spawnX, asteroidSystem) && attempts < maxAttempts);
-        
+        } while (!isSafeSpawnPosition(spawnX, asteroidSystem));
+
         visualMesh.position.set(spawnX, HEALTH_BOOST_CONFIG.spawnHeight, 0);
         hitbox.position.copyFrom(visualMesh.position);
 
@@ -138,15 +117,16 @@ export function createHealthBoost(scene, rocketship, healthManager, camera) {
 
         hitbox.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, HEALTH_BOOST_CONFIG.fallSpeed, 0));
 
-        // Link visual to hitbox
+        //koppel hitbox aan visual mesh
         visualMesh.physicsImpostor = hitbox.physicsImpostor;
         visualMesh.metadata = { hitbox: hitbox };
-        
+
         powerup = visualMesh;
 
+        //check voor hitbox van rocketship te krijgen, anders gewoon rocketship zelf gebruiken
         const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
 
-        collisionMesh.physicsImpostor.registerOnPhysicsCollide(hitbox.physicsImpostor, () => {
+        collisionCallback = () => {
             if (powerup) {
                 const currentHealth = healthManager.getHealth();
                 const newHealth = Math.min(HEALTH_BOOST_CONFIG.maxHealth, currentHealth + HEALTH_BOOST_CONFIG.healAmount);
@@ -154,100 +134,125 @@ export function createHealthBoost(scene, rocketship, healthManager, camera) {
 
                 showHealPopup(newHealth - currentHealth, camera);
 
-                const hitboxToDispose = powerup.metadata?.hitbox;
-                if (hitboxToDispose) {
-                    hitboxToDispose.dispose();
-                }
-                powerup.dispose();
+                const powerupToRemove = powerup;
                 powerup = null;
+
+                //niet meerdere keren getriggerd kan worden
+                if (collisionCallback && powerupToRemove.physicsImpostor) {
+                    collisionMesh.physicsImpostor.unregisterOnPhysicsCollide(powerupToRemove.physicsImpostor, collisionCallback);
+                }
+                collisionCallback = null;
+
+                //veilig verwijderen
+                scene.onAfterPhysicsObservable.addOnce(() => {
+                    const hitboxToDispose = powerupToRemove.metadata?.hitbox;
+                    if (hitboxToDispose) {
+                        if (hitboxToDispose.physicsImpostor) hitboxToDispose.physicsImpostor.dispose();
+                        hitboxToDispose.dispose();
+                    }
+                    powerupToRemove.dispose();
+                });
+            }
+        };
+        //registreer collision van rocketship met hitbox van powerup
+        collisionMesh.physicsImpostor.registerOnPhysicsCollide(hitbox.physicsImpostor, collisionCallback);
+    };
+
+    const showHealPopup = (amount) => {
+        const textBlock = new GUI.TextBlock();
+        textBlock.text = `+${amount}`;
+        textBlock.color = HEALTH_BOOST_CONFIG.popup.color;
+        textBlock.fontSize = 40;
+        textBlock.fontWeight = "bold";
+        textBlock.outlineWidth = 2;
+        textBlock.outlineColor = "black";
+
+        guiTexture.addControl(textBlock);
+
+        textBlock.linkWithMesh(rocketship);
+        textBlock.linkOffsetY = -100;
+
+        let alpha = 1.0;
+        let offset = -100;
+
+        const observer = scene.onBeforeRenderObservable.add(() => {
+            offset -= 2;
+            alpha -= 0.02;
+
+            textBlock.linkOffsetY = offset;
+            textBlock.alpha = alpha;
+
+            //tekst en observer verwijderen als volledig transparant
+            if (alpha <= 0) {
+                guiTexture.removeControl(textBlock);
+                textBlock.dispose();
+                scene.onBeforeRenderObservable.remove(observer);
             }
         });
     };
 
-    const showHealPopup = (amount, camera) => {
-        const popupWorldPos = new BABYLON.Vector3(
-            rocketship.position.x,
-            rocketship.position.y + 1.2,
-            rocketship.position.z
-        );
+    //voor safety oude observer verwijderen
+    if (updateObserver) {
+        scene.onBeforeRenderObservable.remove(updateObserver);
+    }
 
-        const engine = scene.getEngine();
-        const screenPos = BABYLON.Vector3.Project(
-            popupWorldPos,
-            BABYLON.Matrix.Identity(),
-            scene.getTransformMatrix(),
-            camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight())
-        );
+    
+    const reset = () => {
+        if (powerup) {
+            const powerupToRemove = powerup;
+            powerup = null;
 
-        const popup = document.createElement('div');
-        popup.textContent = `+${amount}`;
-        popup.style.cssText = `
-            position: fixed;
-            left: ${screenPos.x}px;
-            top: ${screenPos.y + HEALTH_BOOST_CONFIG.popup.yOffset}px;
-            transform: translate(-50%, -100%);
-            font-size: ${HEALTH_BOOST_CONFIG.popup.fontSize};
-            font-weight: bold;
-            color: ${HEALTH_BOOST_CONFIG.popup.color};
-            text-shadow: 0 0 10px ${HEALTH_BOOST_CONFIG.popup.color}, 0 0 20px ${HEALTH_BOOST_CONFIG.popup.color};
-            pointer-events: none;
-            z-index: 1000;
-        `;
-        document.body.appendChild(popup);
+            //stop de engine voor collisions te watchen
+            const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
+            if (collisionCallback && powerupToRemove.physicsImpostor) {
+                collisionMesh.physicsImpostor.unregisterOnPhysicsCollide(powerupToRemove.physicsImpostor, collisionCallback);
+            }
+            collisionCallback = null;
 
-        let yOffset = 0;
-        const animationInterval = setInterval(() => {
-            yOffset += 2;
-            popup.style.top = `${screenPos.y + HEALTH_BOOST_CONFIG.popup.yOffset - yOffset}px`;
-            popup.style.opacity = `${1 - yOffset / 60}`;
-        }, 16);
-
-        setTimeout(() => {
-            clearInterval(animationInterval);
-            popup.remove();
-        }, HEALTH_BOOST_CONFIG.popup.duration);
+            //veilig verwijderen
+            scene.onAfterPhysicsObservable.addOnce(() => {
+                const hitboxToDispose = powerupToRemove.metadata?.hitbox;
+                if (hitboxToDispose) {
+                    if (hitboxToDispose.physicsImpostor) hitboxToDispose.physicsImpostor.dispose();
+                    hitboxToDispose.dispose();
+                }
+                powerupToRemove.dispose();
+            });
+        }
     };
 
-    // Clean up old observer if it exists
     if (updateObserver) {
         scene.onBeforeRenderObservable.remove(updateObserver);
     }
 
     updateObserver = scene.onBeforeRenderObservable.add(() => {
-        if (powerup) {
-            const hitbox = powerup.metadata?.hitbox;
-            
-            if (hitbox) {
-                // Sync position only
-                powerup.position.copyFrom(hitbox.position);
-                
-                // Despawn if too low
-                if (hitbox.position.y < HEALTH_BOOST_CONFIG.despawnHeight) {
-                    console.log('[HEALTH BOOST] Despawning at y:', hitbox.position.y);
-                    hitbox.dispose();
-                    powerup.dispose();
-                    powerup = null;
-                    return;
-                }
-            }
-            
+        if (!powerup) return;
+
+        const hitbox = powerup.metadata?.hitbox;
+        if (hitbox) {
+            //synchroniseer positie
+            powerup.position.copyFrom(hitbox.position);
             powerup.rotation.y += 0.03;
+            
+            //despawn als hij te laag komt
+            if (hitbox.position.y < HEALTH_BOOST_CONFIG.despawnHeight) {
+                reset();
+            }
+           
         }
     });
 
+    const cleanup = () => {
+        reset();
+        if (updateObserver) {
+            scene.onBeforeRenderObservable.remove(updateObserver);
+            updateObserver = null;
+        }
+    };
+
     return {
         spawnPowerup,
-        cleanup: () => {
-            if (updateObserver) {
-                scene.onBeforeRenderObservable.remove(updateObserver);
-                updateObserver = null;
-            }
-            if (powerup) {
-                const hitboxToDispose = powerup.metadata?.hitbox;
-                if (hitboxToDispose) hitboxToDispose.dispose();
-                powerup.dispose();
-                powerup = null;
-            }
-        }
+        reset,
+        cleanup
     };
 }

@@ -2,32 +2,19 @@ import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
 import { createHealthBarUI } from './ui.js';
 
-export function createHealthManager(scene, rocketship, shieldManager) {
+export const createHealthManager = (scene, rocketship, shieldManager) => {
   let health = 100;
   const maxHealth = 100;
-  const damageCooldown = 500; // ms
+  const damageCooldown = 500; // ms voor zelfde asteroid damage te voorkomen
   const lastDamageTime = new Map();
+  let onGameOverCallback = null;
 
   const healthBarUI = createHealthBarUI(scene);
 
   const updateHealthBar = () => {
+    //percentage berekenen van health
     const healthPercent = Math.max(0, health / maxHealth);
     healthBarUI.updateHealthBar(healthPercent);
-  };
-
-  const flashRocketship = () => {
-    if (!rocketship.material) return;
-
-    const oldColor = rocketship.material.emissiveColor ? rocketship.material.emissiveColor.clone() : new BABYLON.Color3(0, 0, 0);
-
-    if (!rocketship.material.emissiveColor) rocketship.material.emissiveColor = new BABYLON.Color3(0, 0, 0);
-    rocketship.material.emissiveColor.set(1, 0, 0);
-
-    setTimeout(() => {
-      if (rocketship.material) {
-        rocketship.material.emissiveColor.copyFrom(oldColor);
-      }
-    }, 100);
   };
 
   const shakeCamera = (camera) => {
@@ -42,10 +29,11 @@ export function createHealthManager(scene, rocketship, shieldManager) {
     const observer = scene.onBeforeRenderObservable.add(() => {
       elapsed += scene.getEngine().getDeltaTime();
       if (elapsed < duration) {
-        const intensity = 0.3 * (1 - elapsed / duration);
-        camera.position.x = originalPos.x + (Math.random() - 0.5) * intensity;
-        camera.position.y = originalPos.y + (Math.random() - 0.5) * intensity;
+        //cam schudden
+        camera.position.x = originalPos.x + (Math.random() - 0.5);
+        camera.position.y = originalPos.y + (Math.random() - 0.5);
       } else {
+        //schudden stoppen
         camera.position.copyFrom(originalPos);
         camera.metadata.isShaking = false;
         scene.onBeforeRenderObservable.remove(observer);
@@ -60,15 +48,12 @@ export function createHealthManager(scene, rocketship, shieldManager) {
     textBlock.fontSize = 28;
     textBlock.fontWeight = "bold";
 
-    textBlock.outlineWidth = 3;
-    textBlock.outlineColor = "black";
-
     healthBarUI.guiTexture.addControl(textBlock);
 
     textBlock.linkWithMesh(rocketship);
     textBlock.linkOffsetY = -100;
 
-    //animate floating up text
+    //animatie omhoog zweven
     let elapsed = 0;
     const duration = 1000;
 
@@ -88,18 +73,24 @@ export function createHealthManager(scene, rocketship, shieldManager) {
   };
 
   const takeDamage = (damage, camera) => {
-    if (shieldManager && shieldManager.isShieldActive()) {
+    if (shieldManager.isShieldActive()) {
       return;
     }
 
     health = Math.max(0, health - damage);
     updateHealthBar();
-    flashRocketship();
-    if (camera) shakeCamera(camera);
-    showDamagePopup(damage);
+    shakeCamera(camera);
+    // showDamagePopup(damage);
+
+    // Check game over
+    if (health <= 0 && onGameOverCallback) {
+      onGameOverCallback();
+    }
   };
 
+  // Botsing met Asteroïden
   const setupCollisionListener = (asteroidManager, camera) => {
+    //rocketship als collider
     const impostor = rocketship.physicsImpostor;
     if (!impostor) return;
 
@@ -108,22 +99,24 @@ export function createHealthManager(scene, rocketship, shieldManager) {
       const key = asteroidMesh.uniqueId;
       const now = Date.now();
 
+      //cooldown om spam-damage van dezelfde steen te voorkomen
       if (!lastDamageTime.has(key) || now - lastDamageTime.get(key) > damageCooldown) {
+        //damage berekenen op basis van grootte
         const damage = Math.ceil((asteroidMesh.scaling.x || 1) * 10);
         takeDamage(damage, camera);
         lastDamageTime.set(key, now);
       }
     };
 
+    //luister naar alle actieve asteroïden
     const observer = scene.onBeforeRenderObservable.add(() => {
-      //enkel active asteroids checken
       if (asteroidManager.active) {
         asteroidManager.active.forEach((asteroid) => {
           const hitbox = asteroid.metadata?.hitbox;
           if (!hitbox || !hitbox.physicsImpostor) return;
 
-          if (!hitbox._collisionRegistered) {
-            hitbox._collisionRegistered = true;
+          if (!hitbox.collisionRegistered) {
+            hitbox.collisionRegistered = true;
             impostor.registerOnPhysicsCollide(hitbox.physicsImpostor, onCollide);
           }
         });
@@ -131,26 +124,31 @@ export function createHealthManager(scene, rocketship, shieldManager) {
     });
   };
 
+  //botsing met projectielen (UFO kogels)
   const setupProjectileCollisionListener = (projectileManager, camera) => {
+    //rocketship als collider
     const impostor = rocketship.physicsImpostor;
     if (!impostor) return;
 
     const onProjectileCollide = (collider, collidedAgainst) => {
       const projMesh = collidedAgainst.object;
-      //enkel bullet die actief is
-      if (projMesh.isEnabled()) {
-        takeDamage(30, camera);
+
+      //voorkomen dat 1 kogel meerdere keren damage doet in dezelfde frame
+      if (projMesh.isEnabled() && !projMesh.isHit) {
+
+        //verwijder kogel (zet isHit op true in manager)
         projectileManager.removeProjectile(projMesh);
+        //doe schade (20hp per schot)
+        takeDamage(20, camera);
       }
     };
 
     const observer = scene.onBeforeRenderObservable.add(() => {
       if (projectileManager.projectiles) {
         projectileManager.projectiles.forEach((proj) => {
-          //enkel bullet die actief is
           if (proj.active && proj.mesh.physicsImpostor) {
-            if (!proj._collisionRegistered) {
-              proj._collisionRegistered = true;
+            if (!proj.collisionRegistered) {
+              proj.collisionRegistered = true;
               impostor.registerOnPhysicsCollide(proj.mesh.physicsImpostor, onProjectileCollide);
             }
           }
@@ -158,6 +156,8 @@ export function createHealthManager(scene, rocketship, shieldManager) {
       }
     });
   };
+
+  // Init bar
   updateHealthBar();
 
   return {
@@ -168,6 +168,9 @@ export function createHealthManager(scene, rocketship, shieldManager) {
     setHealth: (value) => {
       health = Math.max(0, Math.min(value, maxHealth));
       updateHealthBar();
+    },
+    setOnGameOver: (callback) => {
+      onGameOverCallback = callback;
     },
     dispose: () => {
       if (healthBarUI) healthBarUI.dispose();

@@ -1,6 +1,5 @@
 import * as BABYLON from '@babylonjs/core';
 
-// --- 1. VERTEX SHADER ---
 BABYLON.Effect.ShadersStore["starfieldVertexShader"] = `
     precision highp float;
     attribute vec3 position;
@@ -10,7 +9,6 @@ BABYLON.Effect.ShadersStore["starfieldVertexShader"] = `
     }
 `;
 
-// --- 2. FRAGMENT SHADER (Clean & Directional) ---
 BABYLON.Effect.ShadersStore["starfieldPixelShader"] = `
     precision highp float;
     uniform float time;
@@ -81,7 +79,6 @@ BABYLON.Effect.ShadersStore["starfieldPixelShader"] = `
     }
 `;
 
-// --- 3. MANAGER ---
 export const createBackground = (scene) => {
     const plane = BABYLON.MeshBuilder.CreatePlane("starfieldPlane", { size: 1000.0 }, scene);
     plane.position.z = 100;

@@ -35,21 +35,20 @@ function handleSensorData(event) {
     const value = event.target.value;
     const data = new DataView(value.buffer);
 
-    // The sensor sends data in packets starting with 0x55.
-    // We want the ANGLE packet, which is 0x55 followed by 0x61.
-    // Sometimes the packet is split, so this simple check works for 99% of cases.
+    //the sensor sends data in packets starting with 0x55.
+    //we want the angle packet, which is 0x55 followed by 0x61.
 
-    // Check if this is an Angle packet (0x55, 0x61)
+    //check if this is an angle packet
     if (data.getUint8(0) === 0x55 && data.getUint8(1) === 0x61) {
 
-        // rolling on x axies is at bytes 2 and 3
+        //rolling on x axies is at bytes 2 and 3
         const rawRoll = data.getInt16(2, true);
         const rollDegrees = (rawRoll / 32768.0) * 180.0;
         sensorData.roll = rollDegrees;
 
-        // pitching on y axis is at bytes 4 and 5
-        // const rawPitch = data.getInt16(4, true);
-        // const pitchDegrees = (rawPitch / 32768.0) * 180.0;
-        // sensorData.pitch = pitchDegrees;
+        //pitching on y axis is at bytes 4 and 5
+        //const rawPitch = data.getInt16(4, true);
+        //const pitchDegrees = (rawPitch / 32768.0) * 180.0;
+        //sensorData.pitch = pitchDegrees;
     }
 }

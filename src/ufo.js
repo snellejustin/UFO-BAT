@@ -21,6 +21,9 @@ export const createUFO = async (scene, projectileManager) => {
     let isFlying = false;
     let flyingObserver = null;
 
+    // Variabelen voor Boss state
+    let bossHealth = 3;
+
     const modelFiles = ["ufoalien1.glb", "ufoalien2.glb", "ufoalien3.glb", "ufoalien4.glb", "ufoalienboss.glb"];
 
     await Promise.all(modelFiles.map(async (filename) => {
@@ -54,9 +57,9 @@ export const createUFO = async (scene, projectileManager) => {
                     scene
                 );
 
-                //forceer kinematic type
+                // Forceer kinematic type
                 if (ufoRoot.physicsImpostor.physicsBody) {
-                    ufoRoot.physicsImpostor.physicsBody.type = 4;
+                    ufoRoot.physicsImpostor.physicsBody.type = 4; // Kinematic
                     ufoRoot.physicsImpostor.physicsBody.updateMassProperties();
                 }
 
@@ -103,6 +106,49 @@ export const createUFO = async (scene, projectileManager) => {
         }
     };
 
+    // --- NIEUWE STOP FUNCTIE ---
+    // Stopt de update loop, maar laat de UFO staan (bevroren)
+    const stop = () => {
+        if (flyingObserver) {
+            scene.onBeforeRenderObservable.remove(flyingObserver);
+            flyingObserver = null;
+        }
+
+        if (currentActiveUfo && currentActiveUfo._collisionObserver) {
+            scene.onBeforeRenderObservable.remove(currentActiveUfo._collisionObserver);
+            currentActiveUfo._collisionObserver = null;
+        }
+
+        isFlying = false;
+
+        // Zorg dat hij fysiek stilstaat
+        if (currentActiveUfo && currentActiveUfo.root.physicsImpostor) {
+            currentActiveUfo.root.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
+            currentActiveUfo.root.physicsImpostor.setAngularVelocity(BABYLON.Vector3.Zero());
+        }
+    };
+
+    const reset = () => {
+        stop(); // Gebruik stop om eerst alles netjes te killen
+
+        // Reset modellen
+        ufoAssets.forEach((asset) => {
+            asset.root.setEnabled(false);
+            asset.root.position.copyFrom(UFO_CONFIG.startPosition);
+            if (asset.root.physicsImpostor) {
+                asset.root.physicsImpostor.sleep();
+                const body = asset.root.physicsImpostor.physicsBody;
+                if (body) {
+                    body.collisionFilterMask = 0; // Bots nergens mee
+                    body.velocity.set(0, 0, 0);
+                }
+            }
+        });
+
+        bossHealth = 3;
+        currentActiveUfo = ufoAssets.get("ufoalien1.glb");
+    };
+
     const flyUFO = (onComplete, difficultyConfig = {}) => {
         if (isFlying || !currentActiveUfo) return;
 
@@ -110,7 +156,7 @@ export const createUFO = async (scene, projectileManager) => {
         currentActiveUfo.root.setEnabled(true);
 
         const isBoss = currentActiveUfo === ufoAssets.get("ufoalienboss.glb");
-        let bossHealth = 3;
+        bossHealth = 3;
 
         const config = {
             pathPoints: difficultyConfig.pathPoints ?? UFO_CONFIG.pathPoints,
@@ -141,24 +187,26 @@ export const createUFO = async (scene, projectileManager) => {
         if (isBoss && currentActiveUfo.root.physicsImpostor && projectileManager) {
             const bossImpostor = currentActiveUfo.root.physicsImpostor;
 
+            const body = bossImpostor.physicsBody;
+            if (body) {
+                body.collisionFilterMask = -1;
+            }
+            bossImpostor.wakeUp();
+
             const onProjectileHitBoss = (projImpostor, bossImpostor) => {
                 const projMesh = projImpostor.object;
 
-                //al geraakt/uitgeschakeld? STOP direct.
                 if (projMesh.isHit || !projMesh.isEnabled()) return;
 
                 const vel = projImpostor.getLinearVelocity();
 
-                //check: kogel gaat omhoog (speler) EN boss leeft
                 if (vel && vel.y > -1 && bossHealth > 0) {
 
-                    //zet collisionMask op 0 zodat hij niet nog eens botst.
                     projectileManager.removeProjectile(projMesh);
 
                     bossHealth--;
                     console.log(`BOSS HIT! Health remaining: ${bossHealth}`);
 
-                    // Visuele Feedback
                     if (currentActiveUfo.visuals) {
                         currentActiveUfo.visuals.forEach(m => {
                             if (m.material) {
@@ -262,7 +310,6 @@ export const createUFO = async (scene, projectileManager) => {
             currentActiveUfo.root.position.x = BABYLON.Scalar.Lerp(startPos.x, targetPos.x, easedProgress);
             currentActiveUfo.root.position.y = BABYLON.Scalar.Lerp(startPos.y, targetPos.y, easedProgress);
 
-            //force update is nodig omdat mass 0 is
             if (currentActiveUfo.root.physicsImpostor) {
                 currentActiveUfo.root.physicsImpostor.forceUpdate();
             }
@@ -291,16 +338,7 @@ export const createUFO = async (scene, projectileManager) => {
                     }
                 }
                 else if (phase === 'exiting') {
-                    scene.onBeforeRenderObservable.remove(flyingObserver);
-                    flyingObserver = null;
-                    isFlying = false;
-                    currentActiveUfo.root.setEnabled(false);
-
-                    if (isBoss && currentActiveUfo._collisionObserver) {
-                        scene.onBeforeRenderObservable.remove(currentActiveUfo._collisionObserver);
-                        currentActiveUfo._collisionObserver = null;
-                    }
-
+                    reset();
                     if (onComplete) onComplete();
                 }
             }
@@ -310,6 +348,8 @@ export const createUFO = async (scene, projectileManager) => {
     return {
         flyUFO,
         setModel,
+        reset,
+        stop, // Exporteer stop
         isFlying: () => isFlying
     };
 };

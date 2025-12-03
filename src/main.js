@@ -2,7 +2,7 @@ import { createScene, disableCameraArrowKeys } from './scene.js';
 import { createRocketship, setupRocketshipPhysics, setupArrowKeys } from './rocketship.js';
 import { createEngine, startRenderLoop } from './engine.js';
 import { createAsteroidManager } from './asteroids.js';
-import { createPlayButton, createLevelProgressBar } from './ui.js';
+import { createPlayButton, createLevelProgressBar, createGameOverScreen } from './ui.js';
 import { createHealthManager } from './health.js';
 import { createCountdown } from './countdown.js';
 import { createLevelManager } from './levels.js';
@@ -11,7 +11,6 @@ import { createProjectileManager } from './projectiles.js';
 import { createHealthBoost } from './powerups/health-boost.js';
 import { createShield } from './powerups/shield.js';
 import { createRocketShooter } from './powerups/rocketshooter.js';
-// import { createBackground } from './background.js'; // <--- DISABLED
 import * as BABYLON from '@babylonjs/core';
 
 const initGame = async () => {
@@ -21,10 +20,6 @@ const initGame = async () => {
   engine.displayLoadingUI();
 
   const scene = createScene(engine);
-
-  // --- SHADER DISABLED ---
-  // createBackground(scene);
-  // -----------------------
 
   const asteroidSystem = createAsteroidManager(scene);
   const projectileManager = createProjectileManager(scene);
@@ -64,6 +59,70 @@ const initGame = async () => {
   engine.hideLoadingUI();
 
   const uiState = createPlayButton(countdown, levelManager);
+
+  const handleGameOver = async () => {
+    //stop de game loop
+    uiState.isPlaying = false;
+    asteroidSystem.manager.isActive = false;
+
+    //stop alle actieve systemen
+    levelManager.stop();
+    ufo.stop();
+
+    //reset powerups en systemen
+    healthBoost.reset();
+    shield.reset();
+    rocketShooter.reset();
+
+    //game over scherm tonen
+    await createGameOverScreen(
+      scene,
+      //restart callback
+      () => {
+        scene.onAfterPhysicsObservable.addOnce(() => {
+          healthManager.setHealth(100);
+
+          //volledige reset voor nieuwe game
+          asteroidSystem.reset();
+          projectileManager.reset();
+          levelManager.reset();
+          ufo.reset();
+          healthBoost.reset();
+          shield.reset();
+          rocketShooter.reset();
+
+          levelProgressBar.updateProgress(0);
+          countdown.startCountdown(() => {
+            uiState.isPlaying = true;
+            levelManager.startFirstLevel();
+          });
+        });
+      },
+      //quit callback
+      () => {
+        scene.onAfterPhysicsObservable.addOnce(() => {
+          healthManager.setHealth(100);
+
+          asteroidSystem.reset();
+          projectileManager.reset();
+          levelManager.reset();
+          ufo.reset();
+          healthBoost.reset();
+          shield.reset();
+          rocketShooter.reset();
+          levelProgressBar.updateProgress(0);
+
+          const playButtonContainer = document.getElementById('ui-container');
+          if (playButtonContainer) {
+            playButtonContainer.style.display = 'flex';
+          }
+          uiState.isPlaying = false;
+        });
+      }
+    );
+  };
+
+  healthManager.setOnGameOver(handleGameOver);
 
   startRenderLoop(engine, scene, () => {
     if (uiState.isPlaying) {
