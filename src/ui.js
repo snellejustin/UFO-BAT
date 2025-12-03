@@ -135,7 +135,7 @@ export const createLevelProgressBar = (scene, totalLevels = 5) => {
 export const createGameOverScreen = (scene, onRestart, onQuit) => {
     const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("GameOverUI", true, scene);
 
-    // Dark background overlay
+    //dark background overlay
     const overlay = new GUI.Rectangle();
     overlay.width = 1;
     overlay.height = 1;
@@ -144,11 +144,11 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
     overlay.thickness = 0;
     guiTexture.addControl(overlay);
 
-    // Container for the menu items
+    //container for the menu items
     const panel = new GUI.StackPanel();
     guiTexture.addControl(panel);
 
-    // Game Over Title
+    //game Over Title
     const titleText = new GUI.TextBlock();
     titleText.text = "GAME OVER";
     titleText.color = "#ff0000";
@@ -159,13 +159,13 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
     titleText.shadowBlur = 10;
     panel.addControl(titleText);
 
-    // Spacer
+    //spacer
     const spacer1 = new GUI.Rectangle();
     spacer1.height = "40px";
     spacer1.thickness = 0;
     panel.addControl(spacer1);
 
-    // Helper to create styled buttons
+    //helper to create styled buttons
     const createButton = (name, text, bgColor) => {
         const button = GUI.Button.CreateSimpleButton(name, text);
         button.width = "250px";
@@ -177,7 +177,7 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
         button.fontWeight = "bold";
         button.thickness = 2;
 
-        // Hover effects
+        //hover effects
         button.onPointerEnterObservable.add(() => {
             button.scaleX = 1.1;
             button.scaleY = 1.1;
@@ -190,22 +190,22 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
         return button;
     };
 
-    // Restart Button
-    const restartBtn = createButton("restartBtn", "RESTART", "#008800"); // Green
+    //restart Button
+    const restartBtn = createButton("restartBtn", "RESTART", "#008800"); 
     restartBtn.onPointerUpObservable.add(() => {
         cleanup();
         if (onRestart) onRestart();
     });
     panel.addControl(restartBtn);
 
-    // Spacer
+    //spacer
     const spacer2 = new GUI.Rectangle();
     spacer2.height = "30px";
     spacer2.thickness = 0;
     panel.addControl(spacer2);
 
-    // Quit Button
-    const quitBtn = createButton("quitBtn", "QUIT", "#cc0000"); // Red
+    //quit Button
+    const quitBtn = createButton("quitBtn", "QUIT", "#cc0000"); 
     quitBtn.onPointerUpObservable.add(() => {
         cleanup();
         if (onQuit) onQuit();
@@ -222,73 +222,59 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
     };
 };
 
-export const createPlayButton = (countdown, levelManager) => {
+export const createPlayButton = (scene, countdown, levelManager) => {
     const gameState = {
         isPlaying: false,
     };
 
-    const uiContainer = document.createElement('div');
-    uiContainer.id = 'ui-container';
-    uiContainer.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        pointer-events: none; 
-        z-index: 1000;
-    `;
-    document.body.appendChild(uiContainer);
+    const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("PlayUI", true, scene);
 
-    const playButton = document.createElement('button');
-    playButton.textContent = 'PLAY';
-    playButton.id = 'play-button';
-    playButton.style.cssText = `
-        padding: 20px 60px;
-        font-size: 32px;
-        font-weight: bold;
-        background-color: #00ff00;
-        color: #000;
-        border: none;
-        border-radius: 10px;
-        cursor: pointer;
-        pointer-events: auto; 
-        box-shadow: 0 0 20px rgba(0, 255, 0, 0.7);
-        transition: all 0.3s ease;
-        font-family: 'Arial', sans-serif;
-    `;
+    const playBtn = GUI.Button.CreateSimpleButton("playBtn", "PLAY");
+    playBtn.width = "250px";
+    playBtn.height = "80px";
+    playBtn.color = "black";
+    playBtn.background = "#00ff00"; 
+    playBtn.cornerRadius = 10;
+    playBtn.fontSize = 35;
+    playBtn.fontFamily = "Arial, sans-serif";
+    playBtn.fontWeight = "bold";
+    playBtn.thickness = 0; 
+    playBtn.shadowColor = "#00ff00";
+    playBtn.shadowBlur = 0;
+    playBtn.shadowOffsetX = 0;
+    playBtn.shadowOffsetY = 0;
 
-    playButton.addEventListener('mouseover', () => {
-        playButton.style.backgroundColor = '#00ff00';
-        playButton.style.transform = 'scale(1.1)';
-        playButton.style.boxShadow = '0 0 40px rgba(0, 255, 0, 1)';
+    //hover effects
+    playBtn.onPointerEnterObservable.add(() => {
+        playBtn.scaleX = 1.1;
+        playBtn.scaleY = 1.1;
+        playBtn.shadowBlur = 40; 
     });
 
-    playButton.addEventListener('mouseout', () => {
-        playButton.style.backgroundColor = '#00ff00';
-        playButton.style.transform = 'scale(1)';
-        playButton.style.boxShadow = '0 0 20px rgba(0, 255, 0, 0.7)';
+    playBtn.onPointerOutObservable.add(() => {
+        playBtn.scaleX = 1.0;
+        playBtn.scaleY = 1.0;
+        playBtn.shadowBlur = 0;
     });
 
-    playButton.addEventListener('click', async () => {
+    //click Logic
+    playBtn.onPointerUpObservable.add(async () => {
         try {
             await connectToWitMotion();
         } catch (e) {
             console.warn("Witmotion connection cancelled or failed", e);
         }
 
-        uiContainer.style.display = 'none';
+        guiTexture.dispose();
 
+        //start the game loop
         countdown.startCountdown(() => {
             gameState.isPlaying = true;
             levelManager.startFirstLevel();
         });
     });
 
-    uiContainer.appendChild(playButton);
+    guiTexture.addControl(playBtn);
 
     return gameState;
 };

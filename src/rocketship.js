@@ -124,8 +124,8 @@ export const setupRocketshipPhysics = (scene, spaceship, inputWrapper) => {
         calculateScreenBoundary();
     });
 
-    const _tmpVelocity = new BABYLON.Vector3();
-    const _newVelocityVector = new BABYLON.Vector3();
+    const tmpVelocity = new BABYLON.Vector3();
+    const newVelocityVector = new BABYLON.Vector3();
 
     const physicsObserver = scene.onBeforeRenderObservable.add(() => {
         const imp = spaceship.physicsImpostor;
@@ -136,9 +136,9 @@ export const setupRocketshipPhysics = (scene, spaceship, inputWrapper) => {
 
         const currentVel = imp.getLinearVelocity();
         if (currentVel) {
-            _tmpVelocity.copyFrom(currentVel);
+            tmpVelocity.copyFrom(currentVel);
         } else {
-            _tmpVelocity.setAll(0);
+            tmpVelocity.setAll(0);
         }
 
         if (collisionMesh) {
@@ -158,7 +158,7 @@ export const setupRocketshipPhysics = (scene, spaceship, inputWrapper) => {
         const targetVX = input * maxSpeed;
         const lerpFactor = (Math.abs(input) > 0.01) ? accelRate : brakeRate;
 
-        let finalVX = BABYLON.Scalar.Lerp(_tmpVelocity.x, targetVX, lerpFactor);
+        let finalVX = BABYLON.Scalar.Lerp(tmpVelocity.x, targetVX, lerpFactor);
 
         if (Math.abs(input) < 0.01 && Math.abs(finalVX) < 0.1) {
             finalVX = 0;
@@ -175,8 +175,8 @@ export const setupRocketshipPhysics = (scene, spaceship, inputWrapper) => {
             if (finalVX < 0) finalVX = 0;
         }
 
-        _newVelocityVector.set(finalVX, 0, 0);
-        imp.setLinearVelocity(_newVelocityVector);
+        newVelocityVector.set(finalVX, 0, 0);
+        imp.setLinearVelocity(newVelocityVector);
     });
 
     return {
