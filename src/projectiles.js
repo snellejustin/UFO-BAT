@@ -1,18 +1,27 @@
 import * as BABYLON from '@babylonjs/core';
 
-//maskers voor collision filters (Cannon.js)
-const MASK_INACTIVE = 0;      // Botst met niets
-const MASK_ACTIVE = -1;       // Botst met alles (default)
+//maskers voor collision filters
+const MASK_INACTIVE = 0;      //botst met niets
+const MASK_ACTIVE = -1;       //botst met alles (default)
 
 export const createProjectileManager = (scene) => {
-    const poolSize = 80;
+    const poolSize = 30;
     const pool = [];
 
     //queue om kogels veilig te verwijderen NA de physics stap
     const removalQueue = [];
 
+    // Centrale plek voor de standaard instellingen
+    const DEFAULT_PROJECTILE_CONFIG = {
+        size: 0.2,
+        color: { r: 0.063, g: 0.992, b: 0.847 },
+        glowIntensity: 1.0
+    };
+
     let ufoMaterial = null;
-    let currentConfig = { size: 0.2, color: { r: 0.063, g: 0.992, b: 0.847 }, glowIntensity: 1.0 };
+
+    // Initialiseer met de defaults
+    let currentConfig = { ...DEFAULT_PROJECTILE_CONFIG };
 
     const rocketMaterial = new BABYLON.StandardMaterial('rocketProjectileMat', scene);
     rocketMaterial.emissiveColor = new BABYLON.Color3(1, 0, 0);
@@ -32,10 +41,11 @@ export const createProjectileManager = (scene) => {
 
     const setProjectileConfig = (config) => {
         if (config) {
+            // Gebruik de defaults als fallback als een waarde mist
             currentConfig = {
-                size: config.size ?? 0.2,
-                color: config.color ?? { r: 0.063, g: 0.992, b: 0.847 },
-                glowIntensity: config.glowIntensity ?? 1.0
+                size: config.size ?? DEFAULT_PROJECTILE_CONFIG.size,
+                color: config.color ?? DEFAULT_PROJECTILE_CONFIG.color,
+                glowIntensity: config.glowIntensity ?? DEFAULT_PROJECTILE_CONFIG.glowIntensity
             };
             updateUfoMaterial();
         }
@@ -63,6 +73,7 @@ export const createProjectileManager = (scene) => {
         }
 
         mesh.physicsImpostor.sleep();
+        //safety van scherm zetten
         mesh.position.set(0, -1000, 0);
 
         return { mesh, active: false };
@@ -81,7 +92,7 @@ export const createProjectileManager = (scene) => {
         proj.mesh.setEnabled(false);
 
         //reset flags
-        proj._bossCollisionRegistered = false;
+        proj.bossCollisionRegistered = false;
         proj.mesh.isHit = false;
 
         if (proj.mesh.physicsImpostor) {

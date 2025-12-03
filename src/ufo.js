@@ -235,8 +235,8 @@ export const createUFO = async (scene, projectileManager) => {
 
                 projectileManager.projectiles.forEach((proj) => {
                     if (proj.active && proj.mesh.physicsImpostor) {
-                        if (!proj._bossCollisionRegistered) {
-                            proj._bossCollisionRegistered = true;
+                        if (!proj.bossCollisionRegistered) {
+                            proj.bossCollisionRegistered = true;
                             proj.mesh.physicsImpostor.registerOnPhysicsCollide(bossImpostor, onProjectileHitBoss);
                         }
                     }
