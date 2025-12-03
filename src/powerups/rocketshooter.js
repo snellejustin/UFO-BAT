@@ -7,6 +7,8 @@ const CONFIG = {
     fallSpeed: -4,
     fireRate: 1.0,
     projectileSpeed: 10,
+    colGroup: 4,      
+    colMask: 1,         
 };
 
 export const createRocketShooter = (scene, rocketship, camera, projectileManager) => {
@@ -70,9 +72,18 @@ export const createRocketShooter = (scene, rocketship, camera, projectileManager
         mesh.physicsImpostor = new BABYLON.PhysicsImpostor(
             mesh,
             BABYLON.PhysicsImpostor.SphereImpostor,
-            { mass: 1},
+            { mass: 1, restitution: 0, friction: 0 }, 
             scene
         );
+
+        const body = mesh.physicsImpostor.physicsBody;
+        if (body) {
+            body.collisionFilterGroup = CONFIG.colGroup;  //group 4
+            body.collisionFilterMask = CONFIG.colMask;    //botst alleen met group 1 (rocketship)
+            body.collisionResponse = 0;  //geen fysieke reactie op botsingen (ghost mode)
+            body.fixedRotation = true;   //voorkom rotatie
+            body.updateMassProperties();
+        }
 
         mesh.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, CONFIG.fallSpeed, 0));
         activePowerup = mesh;
