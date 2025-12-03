@@ -9,7 +9,6 @@ import { createLevelManager } from './levels.js';
 import { createUFO } from './ufo.js';
 import { createProjectileManager } from './projectiles.js';
 import { createHealthBoost } from './powerups/health-boost.js';
-import { createRocketShooter } from './powerups/rocketshooter.js';
 import { createShield } from './powerups/shield.js';
 import { createRocketShooter } from './powerups/rocketshooter.js';
 import * as BABYLON from '@babylonjs/core';
