@@ -30,8 +30,9 @@ export const createHealthManager = (scene, rocketship, shieldManager) => {
       elapsed += scene.getEngine().getDeltaTime();
       if (elapsed < duration) {
         //cam schudden
-        camera.position.x = originalPos.x + (Math.random() - 0.5);
-        camera.position.y = originalPos.y + (Math.random() - 0.5);
+        const intensity = 0.3 * (1 - elapsed / duration);
+        camera.position.x = originalPos.x + (Math.random() - 0.5)* intensity;
+        camera.position.y = originalPos.y + (Math.random() - 0.5)* intensity;
       } else {
         //schudden stoppen
         camera.position.copyFrom(originalPos);
@@ -80,7 +81,7 @@ export const createHealthManager = (scene, rocketship, shieldManager) => {
     health = Math.max(0, health - damage);
     updateHealthBar();
     shakeCamera(camera);
-    // showDamagePopup(damage);
+    showDamagePopup(damage);
 
     // Check game over
     if (health <= 0 && onGameOverCallback) {
