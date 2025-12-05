@@ -1,22 +1,24 @@
 import * as BABYLON from '@babylonjs/core';
 import '@babylonjs/core/Physics/physicsEngineComponent';
 import { CannonJSPlugin } from '@babylonjs/core/Physics/Plugins/cannonJSPlugin';
+import { sensorData } from './witmotion';
 import * as CANNON from 'cannon-es';
 
-const createSkybox = (scene) => {
-    const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { size: 1000 }, scene);
+const createSkyboxLayer = (scene, name, size, opacity, texturePath) => {
+    const skybox = BABYLON.MeshBuilder.CreateBox(name, { size: size }, scene);
 
-    const skyboxMaterial = new BABYLON.StandardMaterial("skyBoxMat", scene);
+    const skyboxMaterial = new BABYLON.StandardMaterial(name + "Mat", scene);
     skyboxMaterial.backFaceCulling = false;
     skyboxMaterial.disableLighting = true;
+    skyboxMaterial.alpha = opacity;
 
     skyboxMaterial.reflectionTexture = new BABYLON.CubeTexture(
-        "textures/space",
+        texturePath,
         scene,
         ["_px.png", "_py.png", "_pz.png", "_nx.png", "_ny.png", "_nz.png"]
     );
     skyboxMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
-
+    skyboxMaterial.reflectionTexture.level = 2.3; //voor glow
     skybox.material = skyboxMaterial;
 
     return skybox;
@@ -37,17 +39,34 @@ export const createScene = (engine) => {
 
     //glow layer
     const gl = new BABYLON.GlowLayer("glow", scene);
-    gl.intensity = 0.6;
+    gl.intensity = 0.02;
 
-    const skybox = createSkybox(scene);
+    const skyboxOuter = createSkyboxLayer(scene, "skyBoxOuter", 1000, 1.0, "textures/space");
+    const skyboxInner = createSkyboxLayer(scene, "skyBoxInner", 500, 0.4, "textures/space");
+
+    //offset
+    skyboxInner.rotation.x = Math.PI / 4;
 
     scene.onBeforeRenderObservable.add(() => {
         const dt = scene.getEngine().getDeltaTime() / 1000;
         const rotationSpeed = 0.02;
 
-        //rotate skybox slowly
-        if (skybox) {
-            skybox.rotation.x += rotationSpeed * dt;
+        if (skyboxOuter) {
+            skyboxOuter.rotation.x += rotationSpeed * dt;
+        }
+        if (skyboxInner) {
+            skyboxInner.rotation.x += (rotationSpeed * 1.7) * dt;
+        }
+      
+        if (sensorData.isConnected) {
+            const targetRoll = -BABYLON.Tools.ToRadians(sensorData.roll);
+
+            if (skyboxOuter) {
+                skyboxOuter.rotation.y = BABYLON.Scalar.Lerp(skyboxOuter.rotation.y, targetRoll, 0.005);
+            }
+            if (skyboxInner) {
+                skyboxInner.rotation.y = BABYLON.Scalar.Lerp(skyboxInner.rotation.y, targetRoll, 0.005);
+            }
         }
     });
 
