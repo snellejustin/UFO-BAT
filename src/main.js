@@ -110,6 +110,9 @@ const initGame = async () => {
           asteroidSystem.reset();
           projectileManager.reset();
           levelManager.reset();
+          if (levelManager.resetPracticeState) {
+            levelManager.resetPracticeState();
+          }
           ufo.reset();
           healthBoost.reset();
           shield.reset();

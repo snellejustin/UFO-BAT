@@ -24,9 +24,13 @@ export const setupArrowKeys = () => {
 
 export const createRocketship = async (scene) => {
     const [visualResult, collisionResult] = await Promise.all([
-        BABYLON.SceneLoader.ImportMeshAsync("", "assets/blender-models/", "rocket2.glb", scene),
+        BABYLON.SceneLoader.ImportMeshAsync("", "assets/blender-models/", "rocketreadylights4.glb", scene),
         BABYLON.SceneLoader.ImportMeshAsync("", "assets/blender-models/", "rockethitbox3.glb", scene)
     ]);
+
+    visualResult.lights.forEach((light) => {
+        light.intensity = 4;
+    });
 
     const spaceship = visualResult.meshes[0];
     spaceship.name = "spaceship";

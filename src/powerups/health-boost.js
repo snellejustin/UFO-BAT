@@ -74,9 +74,8 @@ export const createHealthBoost = (scene, rocketship, healthManager, camera) => {
         return true;
     };
 
-    const spawnPowerup = (asteroidSystem = null) => {
-        if (!isModelLoaded) return;
-
+    // Helper: isStatic = true for practice mode (no falling, mass 0)
+    const createPowerupMesh = (xPosition, yPosition, isStatic = false) => {
         const visualMesh = healthBoostModel.clone('healthBoost_visual');
         visualMesh.setEnabled(true);
         visualMesh.scaling.setAll(HEALTH_BOOST_CONFIG.scale);
@@ -100,28 +99,42 @@ export const createHealthBoost = (scene, rocketship, healthManager, camera) => {
         );
         hitbox.isVisible = false;
 
-        let spawnX = 0;
-        do {
-            spawnX = (Math.random() - 0.5) * HEALTH_BOOST_CONFIG.spawnWidthRange;
-        } while (!isSafeSpawnPosition(spawnX, asteroidSystem));
-
-        visualMesh.position.set(spawnX, HEALTH_BOOST_CONFIG.spawnHeight, 0);
+        visualMesh.position.set(xPosition, yPosition, 0);
         hitbox.position.copyFrom(visualMesh.position);
+
+        // Physics config: Mass 0 if static
+        const physicsConfig = isStatic
+            ? { ...HEALTH_BOOST_CONFIG.physics, mass: 0 }
+            : HEALTH_BOOST_CONFIG.physics;
 
         hitbox.physicsImpostor = new BABYLON.PhysicsImpostor(
             hitbox,
             BABYLON.PhysicsImpostor.SphereImpostor,
-            HEALTH_BOOST_CONFIG.physics,
+            physicsConfig,
             scene
         );
 
-        hitbox.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, HEALTH_BOOST_CONFIG.fallSpeed, 0));
+        // Apply velocity only if not static
+        if (!isStatic) {
+            hitbox.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, HEALTH_BOOST_CONFIG.fallSpeed, 0));
+        }
 
         //koppel hitbox aan visual mesh
         visualMesh.physicsImpostor = hitbox.physicsImpostor;
         visualMesh.metadata = { hitbox: hitbox };
 
-        powerup = visualMesh;
+        return visualMesh;
+    };
+
+    const spawnPowerup = (asteroidSystem = null) => {
+        if (!isModelLoaded) return;
+
+        let spawnX = 0;
+        do {
+            spawnX = (Math.random() - 0.5) * HEALTH_BOOST_CONFIG.spawnWidthRange;
+        } while (!isSafeSpawnPosition(spawnX, asteroidSystem));
+
+        powerup = createPowerupMesh(spawnX, HEALTH_BOOST_CONFIG.spawnHeight, false);
 
         //check voor hitbox van rocketship te krijgen, anders gewoon rocketship zelf gebruiken
         const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
@@ -134,35 +147,70 @@ export const createHealthBoost = (scene, rocketship, healthManager, camera) => {
 
                 showHealPopup(newHealth - currentHealth, camera);
 
-                const powerupToRemove = powerup;
-                powerup = null;
-
-                //niet meerdere keren getriggerd kan worden
-                if (collisionCallback && powerupToRemove.physicsImpostor) {
-                    collisionMesh.physicsImpostor.unregisterOnPhysicsCollide(powerupToRemove.physicsImpostor, collisionCallback);
-                }
-                collisionCallback = null;
-
-                //veilig verwijderen
-                scene.onAfterPhysicsObservable.addOnce(() => {
-                    const hitboxToDispose = powerupToRemove.metadata?.hitbox;
-                    if (hitboxToDispose) {
-                        if (hitboxToDispose.physicsImpostor) hitboxToDispose.physicsImpostor.dispose();
-                        hitboxToDispose.dispose();
-                    }
-                    powerupToRemove.dispose();
-                });
+                cleanupPowerup();
             }
         };
         //registreer collision van rocketship met hitbox van powerup
-        collisionMesh.physicsImpostor.registerOnPhysicsCollide(hitbox.physicsImpostor, collisionCallback);
+        collisionMesh.physicsImpostor.registerOnPhysicsCollide(powerup.metadata.hitbox.physicsImpostor, collisionCallback);
+    };
+
+    const spawnPractice = (xPosition, onCollectedCallback) => {
+        if (!isModelLoaded) {
+            // Wait slightly if model is not yet loaded
+            setTimeout(() => spawnPractice(xPosition, onCollectedCallback), 100);
+            return;
+        }
+
+        // Spawn at Y=2 (Eye level) and isStatic=true
+        powerup = createPowerupMesh(xPosition, 2, true);
+
+        const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
+
+        collisionCallback = () => {
+            if (powerup) {
+                showTutorialPopup("EXTRA LEVENS");
+                if (onCollectedCallback) onCollectedCallback(true);
+                cleanupPowerup();
+            }
+        };
+        collisionMesh.physicsImpostor.registerOnPhysicsCollide(powerup.metadata.hitbox.physicsImpostor, collisionCallback);
+    };
+
+    const cleanupPowerup = () => {
+        if (!powerup) return;
+
+        const powerupToRemove = powerup;
+        powerup = null;
+
+        const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
+        if (collisionCallback && powerupToRemove.metadata?.hitbox?.physicsImpostor) {
+            collisionMesh.physicsImpostor.unregisterOnPhysicsCollide(powerupToRemove.metadata.hitbox.physicsImpostor, collisionCallback);
+        }
+        collisionCallback = null;
+
+        scene.onAfterPhysicsObservable.addOnce(() => {
+            const hitboxToDispose = powerupToRemove.metadata?.hitbox;
+            if (hitboxToDispose) {
+                if (hitboxToDispose.physicsImpostor) hitboxToDispose.physicsImpostor.dispose();
+                hitboxToDispose.dispose();
+            }
+            powerupToRemove.dispose();
+        });
     };
 
     const showHealPopup = (amount) => {
+        createFloatingText(`+${amount}`, HEALTH_BOOST_CONFIG.popup.color);
+    };
+
+    const showTutorialPopup = (text) => {
+        createFloatingText(text, "#FFFFFF", 50);
+    };
+
+    const createFloatingText = (text, color, fontSize = 40) => {
         const textBlock = new GUI.TextBlock();
-        textBlock.text = `+${amount}`;
-        textBlock.color = HEALTH_BOOST_CONFIG.popup.color;
-        textBlock.fontSize = 40;
+        textBlock.text = text;
+        textBlock.color = color;
+        textBlock.fontSize = fontSize;
         textBlock.fontWeight = "bold";
         textBlock.outlineWidth = 2;
         textBlock.outlineColor = "black";
@@ -176,8 +224,8 @@ export const createHealthBoost = (scene, rocketship, healthManager, camera) => {
         let offset = -100;
 
         const observer = scene.onBeforeRenderObservable.add(() => {
-            offset -= 2;
-            alpha -= 0.02;
+            offset -= 1;
+            alpha -= 0.015;
 
             textBlock.linkOffsetY = offset;
             textBlock.alpha = alpha;
@@ -196,28 +244,10 @@ export const createHealthBoost = (scene, rocketship, healthManager, camera) => {
         scene.onBeforeRenderObservable.remove(updateObserver);
     }
 
-    
     const reset = () => {
-        if (powerup) {
-            const powerupToRemove = powerup;
-            powerup = null;
-
-            //stop de engine voor collisions te watchen
-            const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
-            if (collisionCallback && powerupToRemove.physicsImpostor) {
-                collisionMesh.physicsImpostor.unregisterOnPhysicsCollide(powerupToRemove.physicsImpostor, collisionCallback);
-            }
-            collisionCallback = null;
-
-            //veilig verwijderen
-            scene.onAfterPhysicsObservable.addOnce(() => {
-                const hitboxToDispose = powerupToRemove.metadata?.hitbox;
-                if (hitboxToDispose) {
-                    if (hitboxToDispose.physicsImpostor) hitboxToDispose.physicsImpostor.dispose();
-                    hitboxToDispose.dispose();
-                }
-                powerupToRemove.dispose();
-            });
+        cleanupPowerup();
+        if (updateObserver) {
+            scene.onBeforeRenderObservable.remove(updateObserver);
         }
     };
 
@@ -233,17 +263,17 @@ export const createHealthBoost = (scene, rocketship, healthManager, camera) => {
             //synchroniseer positie
             powerup.position.copyFrom(hitbox.position);
             powerup.rotation.y += 0.03;
-            
+
             //despawn als hij te laag komt
             if (hitbox.position.y < HEALTH_BOOST_CONFIG.despawnHeight) {
                 reset();
             }
-           
         }
     });
 
     const cleanup = () => {
         reset();
+        if (guiTexture) guiTexture.dispose();
         if (updateObserver) {
             scene.onBeforeRenderObservable.remove(updateObserver);
             updateObserver = null;
@@ -252,6 +282,7 @@ export const createHealthBoost = (scene, rocketship, healthManager, camera) => {
 
     return {
         spawnPowerup,
+        spawnPractice,
         reset,
         cleanup
     };

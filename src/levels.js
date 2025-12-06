@@ -8,7 +8,7 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
     let activeObservers = [];
     let guiTexture = null;
     let levelTextControl = null;
-
+    let hasCompletedPractice = false;
 
     const levels = [
         {
@@ -190,10 +190,15 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
         activeObservers.push(observer);
     };
 
-    const announceLevel = (levelNumber, onComplete) => {
+    const announceLevel = (levelInput, onComplete) => {
         if (!guiTexture) setupGUI();
 
-        levelTextControl.text = `LEVEL ${levelNumber}`;
+        if (typeof levelInput === 'string') {
+            levelTextControl.text = levelInput;
+        } else {
+            levelTextControl.text = `LEVEL ${levelInput}`;
+        }
+        
         levelTextControl.isVisible = true;
         levelTextControl.fontSize = 80;
         levelTextControl.left = "0px";
@@ -217,6 +222,40 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
         }, 1000);
     };
 
+    const startPracticeLevel = () => {
+        isWaveActive = true;
+
+        announceLevel("OEFENEN", () => {
+
+            // Spawn Health on Left (-5)
+            if (healthBoost && healthBoost.spawnPractice) {
+                healthBoost.spawnPractice(-5, (collected) => {
+
+                    safeTimeout(() => {
+                        // Spawn Shield on Right (5)
+                        if (shield && shield.spawnPractice) {
+                            shield.spawnPractice(5, (collected) => {
+                                hasCompletedPractice = true;
+                                endWave(true);
+                                safeTimeout(() => {
+                                    startWave(0); //start actual Level 1
+                                }, 1000);
+                            });
+                        } else {
+                            //fallback
+                            hasCompletedPractice = true;
+                            startWave(0);
+                        }
+                    }, 500);
+                });
+            } else {
+                // Fallback
+                hasCompletedPractice = true;
+                startWave(0);
+            }
+        });
+    };
+
     const startWave = (levelIndex) => {
         if (levelIndex >= levels.length) return false;
 
@@ -224,7 +263,7 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
         const levelConfig = levels[currentLevelIndex];
         isWaveActive = true;
 
-        // Update level progress bar
+        //update level progress bar
         if (levelProgressBar) {
             levelProgressBar.updateProgress(currentLevelIndex + 1);
         }
@@ -280,20 +319,22 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
                     }, delay);
                 });
             }
-
             safeTimeout(() => endWave(), levelConfig.duration);
         });
 
         return true;
     };
 
-    const endWave = () => {
+    const endWave = (skipTransition = false) => {
         isWaveActive = false;
         asteroidSystem.manager.isActive = false;
 
         if (levelTextControl) {
             levelTextControl.isVisible = false;
         }
+
+        if (skipTransition) return;
+        if (!levels[currentLevelIndex]) return;
 
         const levelConfig = levels[currentLevelIndex];
 
@@ -337,7 +378,11 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
     };
 
     const startFirstLevel = () => {
-        startWave(0);
+        if (!hasCompletedPractice) {
+            startPracticeLevel();
+        } else {
+            startWave(0);
+        }
     };
 
     const reset = () => {
@@ -389,8 +434,9 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
     return {
         startFirstLevel,
         reset,
-        stop, // Exporteer de stop functie
+        stop, 
         cleanup,
+        resetPracticeState: () => { hasCompletedPractice = false; },
         getCurrentLevel: () => currentLevelIndex + 1,
         isWaveActive: () => isWaveActive,
         levels
