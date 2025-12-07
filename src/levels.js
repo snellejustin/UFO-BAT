@@ -198,7 +198,7 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
         } else {
             levelTextControl.text = `LEVEL ${levelInput}`;
         }
-        
+
         levelTextControl.isVisible = true;
         levelTextControl.fontSize = 80;
         levelTextControl.left = "0px";
@@ -227,12 +227,12 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
 
         announceLevel("OEFENEN", () => {
 
-            // Spawn Health on Left (-5)
+            //spawn Health on Left (-5)
             if (healthBoost && healthBoost.spawnPractice) {
                 healthBoost.spawnPractice(-5, (collected) => {
 
                     safeTimeout(() => {
-                        // Spawn Shield on Right (5)
+                        //spawn Shield on Right (5)
                         if (shield && shield.spawnPractice) {
                             shield.spawnPractice(5, (collected) => {
                                 hasCompletedPractice = true;
@@ -249,7 +249,7 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
                     }, 500);
                 });
             } else {
-                // Fallback
+                //fallback
                 hasCompletedPractice = true;
                 startWave(0);
             }
@@ -263,9 +263,11 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
         const levelConfig = levels[currentLevelIndex];
         isWaveActive = true;
 
-        //update level progress bar
+        //start progress animation for asteroid phase (80% of level progress)
         if (levelProgressBar) {
-            levelProgressBar.updateProgress(currentLevelIndex + 1);
+            const totalLevels = levels.length;
+            const asteroidEndPercent = ((currentLevelIndex + 0.8) / totalLevels) * 100;
+            levelProgressBar.animateTo(asteroidEndPercent, levelConfig.duration);
         }
 
         //for boss levels, don't set model yet (wait for rocket shooter pickup)
@@ -337,6 +339,20 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
         if (!levels[currentLevelIndex]) return;
 
         const levelConfig = levels[currentLevelIndex];
+
+        //start progress animation for boss phase (remaining 20%)
+        if (levelProgressBar) {
+            const totalLevels = levels.length;
+            const levelEndPercent = ((currentLevelIndex + 1) / totalLevels) * 100;
+            
+            //calculate estimated boss duration based on UFO config
+            const ufoConfig = levelConfig.ufoConfig;
+            const estimatedBossDuration = (ufoConfig.enterDuration || 2000) + 
+                                          (ufoConfig.exitDuration || 1000) + 
+                                          ((ufoConfig.pathPoints || 5) * (ufoConfig.timePerPoint || 2000));
+
+            levelProgressBar.animateTo(levelEndPercent, estimatedBossDuration);
+        }
 
         //check for boss event (Rocket Shooter)
         const isRocketLevel = levelConfig.hasBossEvent;
@@ -434,7 +450,7 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
     return {
         startFirstLevel,
         reset,
-        stop, 
+        stop,
         cleanup,
         resetPracticeState: () => { hasCompletedPractice = false; },
         getCurrentLevel: () => currentLevelIndex + 1,

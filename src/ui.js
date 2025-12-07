@@ -68,45 +68,79 @@ export const createHealthBarUI = (scene) => {
 export const createLevelProgressBar = (scene, totalLevels = 5) => {
     const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("LevelProgressUI", true, scene);
 
-    const progressBarBg = new GUI.Rectangle("progressBarBg");
-    progressBarBg.width = "30px";
-    progressBarBg.height = "400px";
-    progressBarBg.cornerRadius = 15;
-    progressBarBg.color = "white";
-    progressBarBg.thickness = 3;
-    progressBarBg.background = "#202020";
-    progressBarBg.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-    progressBarBg.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
-    progressBarBg.left = "-30px";
-    progressBarBg.top = "0px";
-    guiTexture.addControl(progressBarBg);
+    const mainWrapper = new GUI.Container("mainWrapper");
+    mainWrapper.width = "100px";
+    mainWrapper.height = "70%";
+    mainWrapper.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+    mainWrapper.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+    mainWrapper.left = "-20px";
+    mainWrapper.clipChildren = false;
+    guiTexture.addControl(mainWrapper);
+
+    const cowImage = new GUI.Image("cowImage", "assets/images/progressbar/cow.png");
+    cowImage.width = "80px";
+    cowImage.height = "80px";
+    cowImage.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+    cowImage.zIndex = 10;
+    mainWrapper.addControl(cowImage);
+
+    const progressBarContainer = new GUI.Container("progressBarContainer");
+    progressBarContainer.widthInPixels = 50;
+    progressBarContainer.height = "92%";
+    progressBarContainer.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+    mainWrapper.addControl(progressBarContainer);
+
+    const progressBarBg = new GUI.Image("progressBarBg", "assets/images/progressbar/bar.png");
+    progressBarBg.width = "100%";
+    progressBarBg.height = "100%";
+    progressBarContainer.addControl(progressBarBg);
 
     const progressFill = new GUI.Rectangle("progressFill");
-    progressFill.width = "100%";
+    progressFill.width = "35%";
     progressFill.height = "0%";
-    progressFill.cornerRadius = 15;
+    progressFill.cornerRadius = 4;
     progressFill.thickness = 0;
-    progressFill.background = "#00ff00";
+    progressFill.background = "#d8ac44ff";
     progressFill.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
-    progressBarBg.addControl(progressFill);
+    progressBarContainer.addControl(progressFill);
 
     const checkpoints = [];
-    const checkpointSpacing = 400 / (totalLevels + 1);
+    const checkpointSpacing = 100 / totalLevels; 
 
     for (let i = 0; i < totalLevels; i++) {
-        const checkpoint = new GUI.Ellipse(`checkpoint${i}`);
-        checkpoint.width = "20px";
-        checkpoint.height = "20px";
-        checkpoint.color = "white";
-        checkpoint.thickness = 3;
-        checkpoint.background = "#404040";
+        const levelNumber = i + 1;
+        
+        const checkpoint = new GUI.Image(
+            `checkpoint${i}`, 
+            `assets/images/progressbar/numbers/inactive/inactive-${levelNumber}.png`
+        );
+        checkpoint.width = "50px";
+        checkpoint.height = "50px";
         checkpoint.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
         checkpoint.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
-        checkpoint.top = `-${checkpointSpacing * (i + 1) - 10}px`;
+        //position based on start of level (0%, 20%, 40%...)
+        checkpoint.top = `-${checkpointSpacing * i}%`;
 
-        progressBarBg.addControl(checkpoint);
-        checkpoints.push(checkpoint);
+        progressBarContainer.addControl(checkpoint);
+        checkpoints.push({
+            image: checkpoint,
+            levelNumber: levelNumber,
+            //activate when progress reaches this point (start of level)
+            threshold: checkpointSpacing * i
+        });
     }
+
+    let currentAnimationObserver = null;
+
+    const updateCheckpoints = (currentPercent) => {
+        checkpoints.forEach((checkpoint) => {
+            if (currentPercent >= checkpoint.threshold) {
+                checkpoint.image.source = `assets/images/progressbar/numbers/active/active-${checkpoint.levelNumber}.png`;
+            } else {
+                checkpoint.image.source = `assets/images/progressbar/numbers/inactive/inactive-${checkpoint.levelNumber}.png`;
+            }
+        });
+    };
 
     return {
         guiTexture,
@@ -115,16 +149,40 @@ export const createLevelProgressBar = (scene, totalLevels = 5) => {
         updateProgress: (currentLevel) => {
             const progressPercent = (currentLevel / totalLevels) * 100;
             progressFill.height = `${progressPercent}%`;
+            updateCheckpoints(progressPercent);
+        },
+        animateTo: (targetPercent, duration) => {
+            if (currentAnimationObserver) {
+                scene.onBeforeRenderObservable.remove(currentAnimationObserver);
+                currentAnimationObserver = null;
+            }
 
-            checkpoints.forEach((checkpoint, index) => {
-                if (index < currentLevel) {
-                    checkpoint.background = "#00ff00";
-                    checkpoint.color = "#00ff00";
-                } else {
-                    checkpoint.background = "#404040";
-                    checkpoint.color = "white";
+            const startHeight = parseFloat(progressFill.height) || 0;
+            const startTime = performance.now();
+            
+            currentAnimationObserver = scene.onBeforeRenderObservable.add(() => {
+                const now = performance.now();
+                const elapsed = now - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                const currentPercent = startHeight + (targetPercent - startHeight) * progress;
+                progressFill.height = `${currentPercent}%`;
+                
+                updateCheckpoints(currentPercent);
+
+                if (progress >= 1) {
+                    scene.onBeforeRenderObservable.remove(currentAnimationObserver);
+                    currentAnimationObserver = null;
                 }
             });
+        },
+        reset: () => {
+            if (currentAnimationObserver) {
+                scene.onBeforeRenderObservable.remove(currentAnimationObserver);
+                currentAnimationObserver = null;
+            }
+            progressFill.height = "0%";
+            updateCheckpoints(0);
         },
         dispose: () => {
             if (guiTexture) guiTexture.dispose();
