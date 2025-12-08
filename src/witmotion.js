@@ -8,12 +8,26 @@ export const sensorData = {
     yaw: 0
 };
 
+const disconnectListeners = [];
+
+export function onWitmotionDisconnect(callback) {
+    disconnectListeners.push(callback);
+}
+
+function handleDisconnect() {
+    console.warn("Witmotion sensor disconnected!");
+    sensorData.isConnected = false;
+    disconnectListeners.forEach(cb => cb());
+}
+
 export async function connectToWitMotion() {
     try {
         const device = await navigator.bluetooth.requestDevice({
             filters: [{ namePrefix: 'WT' }],
             optionalServices: [WITMOTION_SERVICE_UUID]
         });
+
+        device.addEventListener('gattserverdisconnected', handleDisconnect);
 
         const server = await device.gatt.connect();
         const service = await server.getPrimaryService(WITMOTION_SERVICE_UUID);

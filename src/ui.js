@@ -1,4 +1,4 @@
-import { connectToWitMotion } from './witmotion.js';
+import { connectToWitMotion, onWitmotionDisconnect, sensorData } from './witmotion.js';
 import * as GUI from '@babylonjs/gui';
 import * as BABYLON from '@babylonjs/core';
 
@@ -280,59 +280,133 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
     };
 };
 
-export const createPlayButton = (scene, countdown, levelManager) => {
+export const createIdleScreen = (scene, countdown, levelManager) => {
     const gameState = {
         isPlaying: false,
     };
 
-    const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("PlayUI", true, scene);
+    const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("IdleUI", true, scene);
 
-    const playBtn = GUI.Button.CreateSimpleButton("playBtn", "PLAY");
-    playBtn.width = "250px";
-    playBtn.height = "80px";
-    playBtn.color = "black";
-    playBtn.background = "#00ff00"; 
-    playBtn.cornerRadius = 10;
-    playBtn.fontSize = 35;
-    playBtn.fontFamily = "Arial, sans-serif";
-    playBtn.fontWeight = "bold";
-    playBtn.thickness = 0; 
-    playBtn.shadowColor = "#00ff00";
-    playBtn.shadowBlur = 0;
-    playBtn.shadowOffsetX = 0;
-    playBtn.shadowOffsetY = 0;
+    //full screen idle image
+    const idleImage = new GUI.Image("idleImage", "assets/images/IdleState.png");
+    idleImage.width = "100%";
+    idleImage.height = "100%";
+    idleImage.stretch = GUI.Image.STRETCH_FILL; 
+    
+    //make it clickable
+    idleImage.isPointerBlocker = true;
+    idleImage.hoverCursor = "pointer";
 
-    //hover effects
-    playBtn.onPointerEnterObservable.add(() => {
-        playBtn.scaleX = 1.1;
-        playBtn.scaleY = 1.1;
-        playBtn.shadowBlur = 40; 
-    });
+    guiTexture.addControl(idleImage);
 
-    playBtn.onPointerOutObservable.add(() => {
-        playBtn.scaleX = 1.0;
-        playBtn.scaleY = 1.0;
-        playBtn.shadowBlur = 0;
-    });
+    //white Overlay for Witmotion Start
+    const whiteOverlay = new GUI.Rectangle("whiteOverlay");
+    whiteOverlay.width = "100%";
+    whiteOverlay.height = "100%";
+    whiteOverlay.background = "white";
+    whiteOverlay.alpha = 0;
+    whiteOverlay.thickness = 0;
+    whiteOverlay.isHitTestVisible = false; // Let clicks pass through
+    whiteOverlay.zIndex = 5; 
+    guiTexture.addControl(whiteOverlay);
 
-    //click Logic
-    playBtn.onPointerUpObservable.add(async () => {
-        try {
-            await connectToWitMotion();
-        } catch (e) {
-            console.warn("Witmotion connection cancelled or failed", e);
+    //witmotion Connect Button (Top Left)
+    const connectBtn = GUI.Button.CreateSimpleButton("connectBtn");
+    connectBtn.width = "20px";
+    connectBtn.height = "20px";
+    connectBtn.color = "white";
+    connectBtn.background = "#404040";
+    connectBtn.cornerRadius = 20;
+    connectBtn.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+    connectBtn.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+    connectBtn.left = "20px";
+    connectBtn.top = "20px";
+    connectBtn.zIndex = 10;
+
+    connectBtn.onPointerUpObservable.add(async () => {
+        const connected = await connectToWitMotion();
+        if (connected) {
+            connectBtn.background = "green";
+        } else {
+            console.warn("Witmotion connection failed or cancelled");
+            connectBtn.background = "red";
         }
+    });
 
+    //listen for unexpected disconnections
+    onWitmotionDisconnect(() => {
+        connectBtn.background = "red";
+    });
+
+    guiTexture.addControl(connectBtn);
+
+    //helper to start game
+    let motionObserver = null;
+    const startGame = () => {
+        if (gameState.isPlaying) return;
+        gameState.isPlaying = true;
+
+        if (motionObserver) {
+            scene.onBeforeRenderObservable.remove(motionObserver);
+        }
         guiTexture.dispose();
 
         //start the game loop
         countdown.startCountdown(() => {
-            gameState.isPlaying = true;
             levelManager.startFirstLevel();
         });
+    };
+
+    //motion detection logic
+    let lastRoll = sensorData.roll;
+    let energy = 0;
+    let currentAlpha = 0;
+    let firstFrame = true;
+    const MAX_ENERGY = 100;
+    
+    motionObserver = scene.onBeforeRenderObservable.add(() => {
+        if (!sensorData.isConnected || gameState.isPlaying) {
+            firstFrame = true;
+            return;
+        }
+
+        const currentRoll = sensorData.roll;
+
+        if (firstFrame) {
+            lastRoll = currentRoll;
+            firstFrame = false;
+            return;
+        }
+
+        const delta = Math.abs(currentRoll - lastRoll);
+        lastRoll = currentRoll;
+
+        //accumulate energy based on movement intensity
+        if (delta > 0.1) { 
+            energy += delta * 5.0;
+        }
+
+        //decay energy
+        energy *= 0.96;
+
+        //clamp energy
+        energy = Math.max(0, Math.min(energy, MAX_ENERGY));
+        
+        //smoothly interpolate the visual alpha
+        const targetAlpha = energy / MAX_ENERGY;
+        currentAlpha = BABYLON.Scalar.Lerp(currentAlpha, targetAlpha, 0.1);
+        whiteOverlay.alpha = currentAlpha;
+
+        //trigger start when screen is mostly white
+        if (energy >= MAX_ENERGY * 0.98) { 
+            startGame();
+        }
     });
 
-    guiTexture.addControl(playBtn);
+    //click logic for game start
+    idleImage.onPointerUpObservable.add(() => {
+        startGame();
+    });
 
     return gameState;
 };

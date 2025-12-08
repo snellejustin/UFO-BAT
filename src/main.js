@@ -2,7 +2,7 @@ import { createScene, disableCameraArrowKeys } from './scene.js';
 import { createRocketship, setupRocketshipPhysics, setupArrowKeys } from './rocketship.js';
 import { createEngine, startRenderLoop } from './engine.js';
 import { createAsteroidManager } from './asteroids.js';
-import { createPlayButton, createLevelProgressBar, createGameOverScreen } from './ui.js';
+import { createIdleScreen, createLevelProgressBar, createGameOverScreen } from './ui.js';
 import { createHealthManager } from './health.js';
 import { createCountdown } from './countdown.js';
 import { createLevelManager } from './levels.js';
@@ -64,7 +64,7 @@ const initGame = async () => {
 
   engine.hideLoadingUI();
 
-  let uiState = createPlayButton(scene, countdown, levelManager);
+  let uiState = createIdleScreen(scene, countdown, levelManager);
 
   const handleGameOver = async () => {
     //stop alles direct
@@ -118,7 +118,7 @@ const initGame = async () => {
           shield.reset();
           rocketShooter.reset();
           levelProgressBar.updateProgress(0);
-          uiState = createPlayButton(scene, countdown, levelManager);
+          uiState = createIdleScreen(scene, countdown, levelManager);
           uiState.isPlaying = false;
         });
       }
