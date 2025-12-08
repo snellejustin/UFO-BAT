@@ -2,7 +2,7 @@ import * as BABYLON from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
 
 const UFO_CONFIG = {
-    startPosition: new BABYLON.Vector3(0, 15, 0),
+    startPosition: new BABYLON.Vector3(0, 20, 0),
     rotation: { default: -45, min: -70, max: -40 },
     pathPoints: 5,
     pathXRange: { min: -8, max: 8 },

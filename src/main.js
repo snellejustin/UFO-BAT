@@ -16,10 +16,22 @@ import * as BABYLON from '@babylonjs/core';
 const initGame = async () => {
   const canvas = document.getElementById('renderCanvas');
   const engine = createEngine(canvas);
+  const audioEngine = await BABYLON.CreateAudioEngineAsync();
 
   engine.displayLoadingUI();
 
   const scene = createScene(engine);
+
+  const backgroundMusic = await BABYLON.CreateSoundAsync(
+    "backgroundMusic",
+    "assets/sounds/Galaxy.mp3",
+    {
+      loop: true,
+      autoplay: false,
+      volume: 0.05,
+      maxInstances: 1
+    }
+  );
 
   //managers aanmaken
   const asteroidSystem = createAsteroidManager(scene);
@@ -34,7 +46,7 @@ const initGame = async () => {
 
   //powerups & health setup
   const shield = createShield(scene, spaceship, scene.activeCamera);
-  const healthManager = createHealthManager(scene, spaceship, shield);
+  const healthManager = await createHealthManager(scene, spaceship, shield);
   const healthBoost = createHealthBoost(scene, spaceship, healthManager, scene.activeCamera);
   const rocketShooter = createRocketShooter(scene, spaceship, scene.activeCamera, projectileManager);
 
@@ -65,6 +77,11 @@ const initGame = async () => {
   engine.hideLoadingUI();
 
   let uiState = createIdleScreen(scene, countdown, levelManager);
+  
+  //start music when countdown starts
+  countdown.onCountdownStart = () => {
+    backgroundMusic.play();
+  };
 
   const handleGameOver = async () => {
     //stop alles direct
@@ -100,10 +117,18 @@ const initGame = async () => {
             uiState.isPlaying = true;
             levelManager.startFirstLevel();
           });
+
+          //ensure music is playing on restart
+          if (!backgroundMusic.isPlaying) {
+            backgroundMusic.play();
+          }
         });
       },
       //QUIT CALLBACK (Terug naar hoofdmenu)
       () => {
+        //stop music on quit
+        backgroundMusic.stop();
+
         scene.onAfterPhysicsObservable.addOnce(() => {
           //reset alles naar beginstaat
           healthManager.setHealth(100);

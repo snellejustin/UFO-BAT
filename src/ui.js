@@ -324,6 +324,11 @@ export const createIdleScreen = (scene, countdown, levelManager) => {
     connectBtn.zIndex = 10;
 
     connectBtn.onPointerUpObservable.add(async () => {
+        //resume audio context on user interaction
+        if (BABYLON.Engine.audioEngine && BABYLON.Engine.audioEngine.audioContext) {
+            BABYLON.Engine.audioEngine.audioContext.resume();
+        }
+
         const connected = await connectToWitMotion();
         if (connected) {
             connectBtn.background = "green";
@@ -405,6 +410,10 @@ export const createIdleScreen = (scene, countdown, levelManager) => {
 
     //click logic for game start
     idleImage.onPointerUpObservable.add(() => {
+        //resume audio context on user interaction
+        if (BABYLON.Engine.audioEngine && BABYLON.Engine.audioEngine.audioContext) {
+            BABYLON.Engine.audioEngine.audioContext.resume();
+        }
         startGame();
     });
 

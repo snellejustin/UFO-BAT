@@ -2,7 +2,7 @@ import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
 import { createHealthBarUI } from './ui.js';
 
-export const createHealthManager = (scene, rocketship, shieldManager) => {
+export const createHealthManager = async (scene, rocketship, shieldManager) => {
   let health = 100;
   const maxHealth = 100;
   const damageCooldown = 500; // ms voor zelfde asteroid damage te voorkomen
@@ -10,6 +10,12 @@ export const createHealthManager = (scene, rocketship, shieldManager) => {
   let onGameOverCallback = null;
 
   const healthBarUI = createHealthBarUI(scene);
+
+  //sound effect for asteroid collision
+  const impactSound = await BABYLON.CreateSoundAsync("impact", "assets/sounds/ast-roc.mp3", {
+    volume: 0.2,
+    maxInstances: 3
+  });
 
   const updateHealthBar = () => {
     //percentage berekenen van health
@@ -105,6 +111,10 @@ export const createHealthManager = (scene, rocketship, shieldManager) => {
         //damage berekenen op basis van grootte
         const damage = Math.ceil((asteroidMesh.scaling.x || 1) * 10);
         takeDamage(damage, camera);
+        
+        //play impact sound
+        impactSound.play();
+
         lastDamageTime.set(key, now);
       }
     };

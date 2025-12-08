@@ -208,6 +208,10 @@ class AsteroidManager {
                 hitbox.physicsImpostor.sleep();
                 hitbox.physicsImpostor.setLinearVelocity(TMP_ZERO);
                 hitbox.physicsImpostor.setAngularVelocity(TMP_ZERO);
+                
+                //move far away to prevent ghost collisions
+                hitbox.position.set(0, -1000, 0);
+                hitbox.physicsImpostor.forceUpdate();
             }
         }
         this.pool.push(asteroid);

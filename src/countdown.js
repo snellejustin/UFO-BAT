@@ -40,7 +40,15 @@ export const createCountdown = (scene) => {
         // scene.beginDirectAnimation(countText, [fontSizeAnim], 0, 20, false);
     };
 
+    const result = {
+        onCountdownStart: null
+    };
+
     const startCountdown = (onComplete) => {
+        if (result.onCountdownStart) {
+            result.onCountdownStart();
+        }
+
         let count = 3;
         countText.text = count.toString();
         countText.isVisible = true;
@@ -65,13 +73,12 @@ export const createCountdown = (scene) => {
         }, 1000);
     };
 
-    return {
-        startCountdown,
-        //opkuisen
-        dispose: () => {
-            if (advancedTexture) {
-                advancedTexture.dispose();
-            }
+    result.startCountdown = startCountdown;
+    result.dispose = () => {
+        if (advancedTexture) {
+            advancedTexture.dispose();
         }
     };
+
+    return result;
 };
