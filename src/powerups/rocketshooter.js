@@ -1,5 +1,6 @@
 import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
+import '@babylonjs/loaders/glTF';
 
 const CONFIG = {
     spawnHeight: 15,
@@ -58,16 +59,39 @@ export const createRocketShooter = (scene, rocketship, camera, projectileManager
         });
     };
 
-    const spawnPowerup = (onCollected) => {
+    const spawnPowerup = async (onCollected) => {
         if (activePowerup) return;
 
-        const mesh = BABYLON.MeshBuilder.CreateSphere('rocketShooterPowerup', { diameter: 0.8 }, scene);
+        // Create invisible hitbox for physics
+        const mesh = BABYLON.MeshBuilder.CreateSphere('rocketShooterHitbox', { diameter: 0.8 }, scene);
         mesh.position.set(0, CONFIG.spawnHeight, 0);
+        mesh.isVisible = false;
 
-        const mat = new BABYLON.StandardMaterial('rocketShooterMat', scene);
-        mat.emissiveColor = new BABYLON.Color3(1, 0, 0);
-        mat.disableLighting = true;
-        mesh.material = mat;
+        // Load GLB model
+        try {
+            const result = await BABYLON.SceneLoader.ImportMeshAsync("", "assets/blender-models/", "shooterpowerup.glb", scene);
+            const model = result.meshes[0];
+            model.parent = mesh;
+            model.position.setAll(0);
+            model.scaling.setAll(0.7); 
+
+            // Add rotation animation
+            const rotationObserver = scene.onBeforeRenderObservable.add(() => {
+                if (model && !model.isDisposed()) {
+                    model.rotation.y += 0.02;
+                } else {
+                    scene.onBeforeRenderObservable.remove(rotationObserver);
+                }
+            });
+        } catch (e) {
+            console.error("Failed to load shooterpowerup.glb", e);
+            // Fallback to visible sphere
+            mesh.isVisible = true;
+            const mat = new BABYLON.StandardMaterial('rocketShooterMat', scene);
+            mat.emissiveColor = new BABYLON.Color3(1, 0, 0);
+            mat.disableLighting = true;
+            mesh.material = mat;
+        }
 
         mesh.physicsImpostor = new BABYLON.PhysicsImpostor(
             mesh,
