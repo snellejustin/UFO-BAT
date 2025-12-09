@@ -280,19 +280,104 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
     };
 };
 
+const showReadyPopup = (scene, onReady) => {
+    //blur Effect on Main Camera
+    const mainCamera = scene.activeCamera;
+    const blurH = new BABYLON.BlurPostProcess("Horizontal blur", new BABYLON.Vector2(1.0, 0), 32, 1.0, mainCamera);
+    const blurV = new BABYLON.BlurPostProcess("Vertical blur", new BABYLON.Vector2(0, 1.0), 32, 1.0, mainCamera);
+
+    //setup UI Camera (No Blur)
+    const uiCamera = new BABYLON.FreeCamera("uiCamera", new BABYLON.Vector3(0, 0, -10), scene);
+    uiCamera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA;
+    uiCamera.layerMask = 0x10000000; //unique mask for UI
+    
+    //manage active cameras
+    const originalActiveCameras = scene.activeCameras ? [...scene.activeCameras] : null;
+    if (!scene.activeCameras || scene.activeCameras.length === 0) {
+        scene.activeCameras = [mainCamera];
+    }
+    scene.activeCameras.push(uiCamera);
+
+    //UI
+    const advancedTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("ReadyUI", true, scene);
+    advancedTexture.layer.layerMask = 0x10000000; //only render on UI Camera
+    
+    //dark overlay
+    const overlay = new GUI.Rectangle();
+    overlay.width = "100%";
+    overlay.height = "100%";
+    overlay.background = "black";
+    overlay.alpha = 0.3;
+    overlay.thickness = 0;
+    advancedTexture.addControl(overlay);
+
+    const popupImage = new GUI.Image("popupImage", "assets/images/game-popup.png");
+    popupImage.width = "80%";
+    popupImage.height = "80%";
+    popupImage.stretch = GUI.Image.STRETCH_UNIFORM;
+    advancedTexture.addControl(popupImage);
+
+    //sensor Logic
+    let lastRoll = sensorData.roll;
+    let energy = 0;
+    const MAX_ENERGY = 50; 
+
+    const observer = scene.onBeforeRenderObservable.add(() => {
+        //allow click or sensor shake
+        if (sensorData.isConnected) {
+            const currentRoll = sensorData.roll;
+            const delta = Math.abs(currentRoll - lastRoll);
+            lastRoll = currentRoll;
+
+            if (delta > 0.1) energy += delta * 5.0;
+            energy *= 0.95;
+
+            if (energy > MAX_ENERGY) {
+                finish();
+            }
+        }
+    });
+
+    const finish = () => {
+        scene.onBeforeRenderObservable.remove(observer);
+        
+        //cleanup Blur
+        blurH.dispose();
+        blurV.dispose();
+        
+        //cleanup UI
+        advancedTexture.dispose();
+        
+        //cleanup Camera
+        uiCamera.dispose();
+        if (originalActiveCameras) {
+            scene.activeCameras = originalActiveCameras;
+        } else {
+            scene.activeCameras = [];
+            scene.activeCamera = mainCamera;
+        }
+
+        onReady();
+    };
+    
+    //fallback click
+    popupImage.isPointerBlocker = true;
+    popupImage.onPointerUpObservable.add(finish);
+};
+
 export const createIdleScreen = (scene, countdown, levelManager) => {
     const gameState = {
         isPlaying: false,
     };
 
-    // Preload video texture (paused initially)
+    //preload video texture (paused initially)
     const introVideoTexture = new BABYLON.VideoTexture("introVideo", "assets/animations/intro.mp4", scene, true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, {
         autoPlay: false,
         loop: false,
         autoUpdateTexture: true
     });
     
-    // Ensure it doesn't play yet
+    //ensure it doesn't play yet
     if (introVideoTexture.video) {
         introVideoTexture.video.pause();
         introVideoTexture.video.currentTime = 0;
@@ -400,9 +485,12 @@ export const createIdleScreen = (scene, countdown, levelManager) => {
                 introVideoTexture.dispose();
                 videoLayer.dispose();
 
-                //start Game
-                countdown.startCountdown(() => {
-                    levelManager.startFirstLevel();
+                // Show Ready Popup (Blurred BG)
+                showReadyPopup(scene, () => {
+                    // Start Game AFTER popup is dismissed
+                    countdown.startCountdown(() => {
+                        levelManager.startFirstLevel();
+                    });
                 });
 
                 //fade out black screen to reveal game
