@@ -69,12 +69,20 @@ class AsteroidManager {
         this.sourceAsteroid = null;
         this.sourceHitbox = null;
         this.isReady = false;
+        this.collisionSound = null;
+        this.allHitboxes = [];
 
         this.loadAsteroidModel();
     }
 
     async loadAsteroidModel() {
         try {
+            // Load collision sound
+            this.collisionSound = await BABYLON.CreateSoundAsync("asteroidImpact", "assets/sounds/ast-ast.mp3", {
+                volume: 0.4,
+                maxInstances: 5
+            });
+
             const visualResult = await BABYLON.SceneLoader.ImportMeshAsync("", "assets/blender-models/", "asteroidnew5.glb", this.scene);
             //zoek de eerste mesh die vertices heeft (zodat je geen lege root node pakt)
             const visualMesh = visualResult.meshes.find(m => m.getTotalVertices() > 0);
@@ -122,6 +130,21 @@ class AsteroidManager {
         if (body) {
             body.linearDamping = this.linDamp;
             body.angularDamping = this.angDamp;
+        }
+
+        // Register collision with other asteroids
+        if (this.collisionSound) {
+            this.allHitboxes.forEach(otherHitbox => {
+                if (otherHitbox.physicsImpostor) {
+                    hitbox.physicsImpostor.registerOnPhysicsCollide(otherHitbox.physicsImpostor, () => {
+                        // Only play sound if both asteroids are active/visible
+                        if (hitbox.isEnabled() && otherHitbox.isEnabled()) {
+                            this.collisionSound.play();
+                        }
+                    });
+                }
+            });
+            this.allHitboxes.push(hitbox);
         }
 
         visualMesh.metadata = { hitbox: hitbox, lifeTime: 0, spinRates: { x: 0, y: 0, z: 0 } };
@@ -287,6 +310,7 @@ class AsteroidManager {
         });
         this.active = [];
         this.pool = [];
+        this.allHitboxes = [];
         if (this.sourceAsteroid) this.sourceAsteroid.dispose();
         if (this.sourceHitbox) this.sourceHitbox.dispose();
         this.isReady = false;
