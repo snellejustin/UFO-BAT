@@ -1,6 +1,7 @@
 import * as GUI from "@babylonjs/gui";
 import { Animation } from "@babylonjs/core";
 import { sensorData } from "./witmotion.js";
+import { createCowManager } from "./cow.js";
 
 export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shield, projectileManager, rocketShooter, levelProgressBar) => {
     let currentLevelIndex = 0;
@@ -11,6 +12,7 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
     let levelTextControl = null;
     let instructionTextControl = null;
     let hasCompletedPractice = false;
+    const cowManager = createCowManager(scene);
 
     const levels = [
         {
@@ -382,6 +384,10 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
         if (!levels[currentLevelIndex]) return;
 
         const levelConfig = levels[currentLevelIndex];
+
+        //spawn floating cow (Left->Right for even levels, Right->Left for odd levels)
+        const direction = currentLevelIndex % 2 === 0 ? 'left-to-right' : 'right-to-left';
+        cowManager.spawnCow(direction);
 
         //start progress animation for boss phase (remaining 20%)
         if (levelProgressBar) {
