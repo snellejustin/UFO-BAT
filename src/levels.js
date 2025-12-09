@@ -241,21 +241,47 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
         announceLevel("OEFENEN", () => {
             if (!guiTexture) setupGUI();
             
-            instructionTextControl.text = "Leun naar links";
-            instructionTextControl.isVisible = true;
+            //helper to show GIF via HTML Overlay
+            const showGif = (name) => {
+                return createGifOverlay("practiceGif", `assets/gifs/${name}`, {
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                    width: "400px",
+                    height: "auto"
+                });
+            };
+
+            let currentGif = showGif("Leun_naar_links.gif");
+            instructionTextControl.isVisible = false;
 
             const checkLeft = scene.onBeforeRenderObservable.add(() => {
                 if (sensorData.roll < -3) {
                     scene.onBeforeRenderObservable.remove(checkLeft);
+                    
+                    if (currentGif) {
+                        currentGif.remove();
+                        currentGif = null;
+                    }
+
                     instructionTextControl.text = "Goed!";
+                    instructionTextControl.isVisible = true;
                     
                     safeTimeout(() => {
-                        instructionTextControl.text = "Leun naar rechts";
+                        instructionTextControl.isVisible = false;
+                        currentGif = showGif("Leun_naar_rechts.gif");
                         
                         const checkRight = scene.onBeforeRenderObservable.add(() => {
                             if (sensorData.roll > 3) {
                                 scene.onBeforeRenderObservable.remove(checkRight);
+                                
+                                if (currentGif) {
+                                    currentGif.remove();
+                                    currentGif = null;
+                                }
+
                                 instructionTextControl.text = "Klaar!";
+                                instructionTextControl.isVisible = true;
                                 
                                 safeTimeout(() => {
                                     instructionTextControl.isVisible = false;
@@ -462,6 +488,21 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
             scene.onBeforeRenderObservable.remove(obs);
         });
         activeObservers = [];
+    };
+
+    //helper to create HTML Overlay for GIFs
+    const createGifOverlay = (id, src, styles) => {
+        const img = document.createElement('img');
+        img.id = id;
+        img.src = src;
+        Object.assign(img.style, {
+            position: 'absolute',
+            zIndex: '1000',
+            pointerEvents: 'none',
+            ...styles
+        });
+        document.body.appendChild(img);
+        return img;
     };
 
     return {

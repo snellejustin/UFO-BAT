@@ -316,7 +316,16 @@ const showReadyPopup = (scene, onReady) => {
     popupImage.width = "85%";
     popupImage.height = "85%";
     popupImage.stretch = GUI.Image.STRETCH_UNIFORM;
+    popupImage.top = "-70px";
     advancedTexture.addControl(popupImage);
+
+    const startGif = createGifOverlay("startGif", "assets/gifs/starten.gif", {
+        bottom: "50px",
+        left: "50%",
+        transform: "translateX(-50%)",
+        width: "40%",
+        height: "auto"
+    });
 
     //sensor Logic
     let lastRoll = sensorData.roll;
@@ -341,14 +350,13 @@ const showReadyPopup = (scene, onReady) => {
 
     const finish = () => {
         scene.onBeforeRenderObservable.remove(observer);
-        
+        const gif = document.getElementById("startGif");
+        if (gif) gif.remove();
         //cleanup Blur
         blurH.dispose();
         blurV.dispose();
-        
         //cleanup UI
         advancedTexture.dispose();
-        
         //cleanup Camera
         uiCamera.dispose();
         if (originalActiveCameras) {
@@ -397,6 +405,14 @@ export const createIdleScreen = (scene, countdown, levelManager) => {
     idleImage.hoverCursor = "pointer";
 
     guiTexture.addControl(idleImage);
+
+    const idleGif = createGifOverlay("idleGif", "assets/gifs/idlescreen.gif", {
+        bottom: "50px",
+        left: "50%",
+        transform: "translateX(-50%)",
+        width: "40%",
+        height: "auto"
+    });
 
     //white Overlay for Witmotion Start
     const whiteOverlay = new GUI.Rectangle("whiteOverlay");
@@ -454,6 +470,9 @@ export const createIdleScreen = (scene, countdown, levelManager) => {
             scene.onBeforeRenderObservable.remove(motionObserver);
         }
         guiTexture.dispose();
+        
+        const gif = document.getElementById("idleGif");
+        if (gif) gif.remove();
 
         //create video layer using preloaded texture
         const videoLayer = new BABYLON.Layer("introLayer", null, scene, false);
@@ -486,9 +505,7 @@ export const createIdleScreen = (scene, countdown, levelManager) => {
                 introVideoTexture.dispose();
                 videoLayer.dispose();
 
-                // Show Ready Popup (Blurred BG)
                 showReadyPopup(scene, () => {
-                    // Start Game AFTER popup is dismissed
                     countdown.startCountdown(() => {
                         levelManager.startFirstLevel();
                     });
@@ -583,4 +600,19 @@ export const createIdleScreen = (scene, countdown, levelManager) => {
     });
 
     return gameState;
+};
+
+//helper to create HTML Overlay for GIFs
+const createGifOverlay = (id, src, styles) => {
+    const img = document.createElement('img');
+    img.id = id;
+    img.src = src;
+    Object.assign(img.style, {
+        position: 'absolute',
+        zIndex: '1000',
+        pointerEvents: 'none',
+        ...styles
+    });
+    document.body.appendChild(img);
+    return img;
 };

@@ -84,8 +84,11 @@ export const createShield = (scene, rocketship, camera) => {
         return true;
     };
 
-    // Helper: isStatic = true for practice mode
-    const createPowerupMesh = (xPosition, yPosition, isStatic = false) => {
+    const spawnPowerup = (asteroidSystem = null) => {
+        if (!isModelLoaded) return;
+
+        //instantiateHierarchy in plaats van clone + loop.
+        //behoudt de parent-child structuur van het complexe shield model.
         const visualMesh = shieldModel.instantiateHierarchy();
         visualMesh.name = 'shield_visual';
         visualMesh.setEnabled(true);
@@ -104,41 +107,30 @@ export const createShield = (scene, rocketship, camera) => {
         );
         hitbox.isVisible = false;
 
-        visualMesh.position.set(xPosition, yPosition, 0);
-        hitbox.position.copyFrom(visualMesh.position);
-
-        const physicsConfig = isStatic
-            ? { ...SHIELD_CONFIG.physics, mass: 0 }
-            : SHIELD_CONFIG.physics;
-
-        hitbox.physicsImpostor = new BABYLON.PhysicsImpostor(
-            hitbox,
-            BABYLON.PhysicsImpostor.SphereImpostor,
-            physicsConfig,
-            scene
-        );
-
-        if (!isStatic) {
-            hitbox.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, SHIELD_CONFIG.fallSpeed, 0));
-        }
-
-        //koppel hitbox aan visual mesh
-        visualMesh.physicsImpostor = hitbox.physicsImpostor;
-        visualMesh.metadata = { hitbox: hitbox };
-
-        return visualMesh;
-    };
-
-    const spawnPowerup = (asteroidSystem = null) => {
-        if (!isModelLoaded) return;
-
         let spawnX = 0;
         do {
             spawnX = (Math.random() - 0.5) * SHIELD_CONFIG.spawnWidthRange;
         } while (!isSafeSpawnPosition(spawnX, asteroidSystem));
 
-        powerup = createPowerupMesh(spawnX, SHIELD_CONFIG.spawnHeight, false);
+        visualMesh.position.set(spawnX, SHIELD_CONFIG.spawnHeight, 0);
+        hitbox.position.copyFrom(visualMesh.position);
 
+        hitbox.physicsImpostor = new BABYLON.PhysicsImpostor(
+            hitbox,
+            BABYLON.PhysicsImpostor.SphereImpostor,
+            SHIELD_CONFIG.physics,
+            scene
+        );
+
+        hitbox.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, SHIELD_CONFIG.fallSpeed, 0));
+
+        //koppel hitbox aan visual mesh
+        visualMesh.physicsImpostor = hitbox.physicsImpostor;
+        visualMesh.metadata = { hitbox: hitbox };
+
+        powerup = visualMesh;
+
+        //check voor hitbox van rocketship te krijgen, anders gewoon rocketship zelf gebruiken
         const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
 
         collisionCallback = () => {
@@ -146,33 +138,28 @@ export const createShield = (scene, rocketship, camera) => {
                 activateShield();
                 showShieldPopup();
 
-                cleanupPowerup();
+                const powerupToRemove = powerup;
+                powerup = null;
+
+                //niet meerdere keren getriggerd kan worden
+                if (collisionMesh.physicsImpostor && powerupToRemove.physicsImpostor) {
+                    collisionMesh.physicsImpostor.unregisterOnPhysicsCollide(powerupToRemove.physicsImpostor, collisionCallback);
+                }
+                collisionCallback = null;
+
+                //veilig verwijderen
+                scene.onAfterPhysicsObservable.addOnce(() => {
+                    const hitboxToDispose = powerupToRemove.metadata?.hitbox;
+                    if (hitboxToDispose) {
+                        if (hitboxToDispose.physicsImpostor) hitboxToDispose.physicsImpostor.dispose();
+                        hitboxToDispose.dispose();
+                    }
+                    powerupToRemove.dispose();
+                });
             }
         };
         //registreer collision van rocketship met hitbox van powerup
-        collisionMesh.physicsImpostor.registerOnPhysicsCollide(powerup.metadata.hitbox.physicsImpostor, collisionCallback);
-    };
-
-    const cleanupPowerup = () => {
-        if (!powerup) return;
-
-        const powerupToRemove = powerup;
-        powerup = null;
-
-        const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
-        if (collisionMesh.physicsImpostor && powerupToRemove.metadata?.hitbox?.physicsImpostor && collisionCallback) {
-            collisionMesh.physicsImpostor.unregisterOnPhysicsCollide(powerupToRemove.metadata.hitbox.physicsImpostor, collisionCallback);
-        }
-        collisionCallback = null;
-
-        scene.onAfterPhysicsObservable.addOnce(() => {
-            const hitboxToDispose = powerupToRemove.metadata?.hitbox;
-            if (hitboxToDispose) {
-                if (hitboxToDispose.physicsImpostor) hitboxToDispose.physicsImpostor.dispose();
-                hitboxToDispose.dispose();
-            }
-            powerupToRemove.dispose();
-        });
+        collisionMesh.physicsImpostor.registerOnPhysicsCollide(hitbox.physicsImpostor, collisionCallback);
     };
 
     const activateShield = () => {
@@ -241,20 +228,12 @@ export const createShield = (scene, rocketship, camera) => {
     };
 
     const showShieldPopup = () => {
-        createFloatingText(SHIELD_CONFIG.popup.text, SHIELD_CONFIG.popup.color);
-    };
-
-    const showTutorialPopup = (text) => {
-        createFloatingText(text, "#FFFFFF", 50);
-    };
-
-    const createFloatingText = (text, color, fontSize = 28) => {
         const textBlock = new GUI.TextBlock();
-        textBlock.text = text;
-        textBlock.color = color;
-        textBlock.fontSize = fontSize;
-        textBlock.fontFamily = "GameFont, Arial, sans-serif";
+        textBlock.text = SHIELD_CONFIG.popup.text;
+        textBlock.color = SHIELD_CONFIG.popup.color;
+        textBlock.fontSize = SHIELD_CONFIG.popup.fontSize;
         textBlock.fontWeight = "bold";
+        textBlock.fontFamily = "GameFont, Arial, sans-serif";
         textBlock.outlineWidth = 2;
         textBlock.outlineColor = "black";
 
@@ -267,8 +246,8 @@ export const createShield = (scene, rocketship, camera) => {
         let offset = SHIELD_CONFIG.popup.yOffset;
 
         const observer = scene.onBeforeRenderObservable.add(() => {
-            offset -= 1;
-            alpha -= 0.015;
+            offset -= 2;
+            alpha -= 0.02;
 
             textBlock.linkOffsetY = offset;
             textBlock.alpha = alpha;
@@ -296,7 +275,28 @@ export const createShield = (scene, rocketship, camera) => {
         }
 
         deactivateShield();
-        cleanupPowerup();
+
+        if (powerup) {
+            const powerupToRemove = powerup;
+            powerup = null;
+
+            //stop de engine voor collisions te watchen
+            const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
+            if (collisionCallback && powerupToRemove.physicsImpostor) {
+                collisionMesh.physicsImpostor.unregisterOnPhysicsCollide(powerupToRemove.physicsImpostor, collisionCallback);
+            }
+            collisionCallback = null;
+
+            //veilig verwijderen
+            scene.onAfterPhysicsObservable.addOnce(() => {
+                const hitboxToDispose = powerupToRemove.metadata?.hitbox;
+                if (hitboxToDispose) {
+                    if (hitboxToDispose.physicsImpostor) hitboxToDispose.physicsImpostor.dispose();
+                    hitboxToDispose.dispose();
+                }
+                powerupToRemove.dispose();
+            });
+        }
     };
 
     if (updateObserver) {
