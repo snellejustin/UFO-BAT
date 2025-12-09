@@ -154,28 +154,6 @@ export const createHealthBoost = (scene, rocketship, healthManager, camera) => {
         collisionMesh.physicsImpostor.registerOnPhysicsCollide(powerup.metadata.hitbox.physicsImpostor, collisionCallback);
     };
 
-    const spawnPractice = (xPosition, onCollectedCallback) => {
-        if (!isModelLoaded) {
-            // Wait slightly if model is not yet loaded
-            setTimeout(() => spawnPractice(xPosition, onCollectedCallback), 100);
-            return;
-        }
-
-        // Spawn at Y=2 (Eye level) and isStatic=true
-        powerup = createPowerupMesh(xPosition, 2, true);
-
-        const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
-
-        collisionCallback = () => {
-            if (powerup) {
-                showTutorialPopup("EXTRA LEVENS");
-                if (onCollectedCallback) onCollectedCallback(true);
-                cleanupPowerup();
-            }
-        };
-        collisionMesh.physicsImpostor.registerOnPhysicsCollide(powerup.metadata.hitbox.physicsImpostor, collisionCallback);
-    };
-
     const cleanupPowerup = () => {
         if (!powerup) return;
 
@@ -282,7 +260,6 @@ export const createHealthBoost = (scene, rocketship, healthManager, camera) => {
 
     return {
         spawnPowerup,
-        spawnPractice,
         reset,
         cleanup
     };

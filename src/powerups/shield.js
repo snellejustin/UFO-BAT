@@ -153,27 +153,6 @@ export const createShield = (scene, rocketship, camera) => {
         collisionMesh.physicsImpostor.registerOnPhysicsCollide(powerup.metadata.hitbox.physicsImpostor, collisionCallback);
     };
 
-    const spawnPractice = (xPosition, onCollectedCallback) => {
-        if (!isModelLoaded) {
-            setTimeout(() => spawnPractice(xPosition, onCollectedCallback), 100);
-            return;
-        }
-
-        // Spawn at Y=2 and isStatic=true
-        powerup = createPowerupMesh(xPosition, 2, true);
-
-        const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
-
-        collisionCallback = () => {
-            if (powerup) {
-                showTutorialPopup("SCHILD POWERUP");
-                if (onCollectedCallback) onCollectedCallback(true);
-                cleanupPowerup();
-            }
-        };
-        collisionMesh.physicsImpostor.registerOnPhysicsCollide(powerup.metadata.hitbox.physicsImpostor, collisionCallback);
-    };
-
     const cleanupPowerup = () => {
         if (!powerup) return;
 
@@ -353,7 +332,6 @@ export const createShield = (scene, rocketship, camera) => {
 
     return {
         spawnPowerup,
-        spawnPractice,
         isShieldActive: () => isShieldActive,
         reset,
         cleanup

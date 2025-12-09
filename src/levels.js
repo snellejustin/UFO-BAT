@@ -1,5 +1,6 @@
 import * as GUI from "@babylonjs/gui";
 import { Animation } from "@babylonjs/core";
+import { sensorData } from "./witmotion.js";
 
 export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shield, projectileManager, rocketShooter, levelProgressBar) => {
     let currentLevelIndex = 0;
@@ -8,6 +9,7 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
     let activeObservers = [];
     let guiTexture = null;
     let levelTextControl = null;
+    let instructionTextControl = null;
     let hasCompletedPractice = false;
 
     const levels = [
@@ -154,6 +156,17 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
         levelTextControl.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
 
         guiTexture.addControl(levelTextControl);
+
+        instructionTextControl = new GUI.TextBlock();
+        instructionTextControl.text = "";
+        instructionTextControl.color = "#ffffff";
+        instructionTextControl.fontSize = 60;
+        instructionTextControl.fontFamily = "Arial, sans-serif";
+        instructionTextControl.fontWeight = "bold";
+        instructionTextControl.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+        instructionTextControl.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+        instructionTextControl.isVisible = false;
+        guiTexture.addControl(instructionTextControl);
     };
     const animateGuiMove = (control, targetFontSize, targetLeft, targetTop, duration, callback) => {
         const fps = 60;
@@ -226,33 +239,37 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
         isWaveActive = true;
 
         announceLevel("OEFENEN", () => {
+            if (!guiTexture) setupGUI();
+            
+            instructionTextControl.text = "Leun naar links";
+            instructionTextControl.isVisible = true;
 
-            //spawn Health on Left (-5)
-            if (healthBoost && healthBoost.spawnPractice) {
-                healthBoost.spawnPractice(-5, (collected) => {
-
+            const checkLeft = scene.onBeforeRenderObservable.add(() => {
+                if (sensorData.roll < -3) {
+                    scene.onBeforeRenderObservable.remove(checkLeft);
+                    instructionTextControl.text = "Goed!";
+                    
                     safeTimeout(() => {
-                        //spawn Shield on Right (5)
-                        if (shield && shield.spawnPractice) {
-                            shield.spawnPractice(5, (collected) => {
-                                hasCompletedPractice = true;
-                                endWave(true);
+                        instructionTextControl.text = "Leun naar rechts";
+                        
+                        const checkRight = scene.onBeforeRenderObservable.add(() => {
+                            if (sensorData.roll > 3) {
+                                scene.onBeforeRenderObservable.remove(checkRight);
+                                instructionTextControl.text = "Klaar!";
+                                
                                 safeTimeout(() => {
-                                    startWave(0); //start actual Level 1
-                                }, 1000);
-                            });
-                        } else {
-                            //fallback
-                            hasCompletedPractice = true;
-                            startWave(0);
-                        }
-                    }, 500);
-                });
-            } else {
-                //fallback
-                hasCompletedPractice = true;
-                startWave(0);
-            }
+                                    instructionTextControl.isVisible = false;
+                                    hasCompletedPractice = true;
+                                    startWave(0);
+                                }, 1500);
+                            }
+                        });
+                        activeObservers.push(checkRight);
+                        
+                    }, 1500);
+                }
+            });
+            activeObservers.push(checkLeft);
         });
     };
 

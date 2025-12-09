@@ -312,8 +312,8 @@ const showReadyPopup = (scene, onReady) => {
     advancedTexture.addControl(overlay);
 
     const popupImage = new GUI.Image("popupImage", "assets/images/game-popup.png");
-    popupImage.width = "80%";
-    popupImage.height = "80%";
+    popupImage.width = "85%";
+    popupImage.height = "85%";
     popupImage.stretch = GUI.Image.STRETCH_UNIFORM;
     advancedTexture.addControl(popupImage);
 
@@ -454,7 +454,7 @@ export const createIdleScreen = (scene, countdown, levelManager) => {
         }
         guiTexture.dispose();
 
-        // Create video layer using preloaded texture
+        //create video layer using preloaded texture
         const videoLayer = new BABYLON.Layer("introLayer", null, scene, false);
         videoLayer.texture = introVideoTexture;
         
