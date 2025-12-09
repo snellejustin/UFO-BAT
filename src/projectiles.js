@@ -4,9 +4,15 @@ import * as BABYLON from '@babylonjs/core';
 const MASK_INACTIVE = 0;      //botst met niets
 const MASK_ACTIVE = -1;       //botst met alles (default)
 
-export const createProjectileManager = (scene) => {
+export const createProjectileManager = async (scene) => {
     const poolSize = 30;
     const pool = [];
+
+    // Load shoot sound
+    const shootSound = await BABYLON.CreateSoundAsync("shoot", "assets/sounds/projectile.mp3", {
+        volume: 0.3,
+        maxInstances: 10
+    });
 
     //queue om kogels veilig te verwijderen NA de physics stap
     const removalQueue = [];
@@ -143,6 +149,11 @@ export const createProjectileManager = (scene) => {
     });
 
     const shootProjectile = (position, speed = -5, velocityDirection = null, isPlayerShot = false) => {
+        // Play sound
+        if (shootSound) {
+            shootSound.play();
+        }
+
         let projectileData = pool.find(p => !p.active);
 
         if (!projectileData) {

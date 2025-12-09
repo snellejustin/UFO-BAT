@@ -35,7 +35,7 @@ const initGame = async () => {
 
   //managers aanmaken
   const asteroidSystem = createAsteroidManager(scene);
-  const projectileManager = createProjectileManager(scene);
+  const projectileManager = await createProjectileManager(scene);
   const countdown = createCountdown(scene);
 
   //assets asynchroon laden
