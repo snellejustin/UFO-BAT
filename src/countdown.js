@@ -8,7 +8,7 @@ export const createCountdown = (scene) => {
     countText.text = "";
     countText.color = "#00ff00";
     countText.fontSize = 120;
-    countText.fontFamily = "Arial, sans-serif";
+    countText.fontFamily = "GameFont, Arial, sans-serif";
     countText.fontWeight = "bold";
     countText.shadowColor = "#00ff00";
     countText.shadowBlur = 40;

@@ -32,6 +32,7 @@ export const createRocketShooter = (scene, rocketship, camera, projectileManager
         text.text = "AUTO-CANNON!";
         text.color = "#FF0000";
         text.fontSize = 28;
+        text.fontFamily = "GameFont, Arial, sans-serif";
         text.fontWeight = "bold";
         text.outlineWidth = 2;
         text.outlineColor = "black";

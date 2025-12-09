@@ -53,6 +53,7 @@ export const createHealthManager = async (scene, rocketship, shieldManager) => {
     textBlock.text = `-${damageAmount}`;
     textBlock.color = "#ff3333";
     textBlock.fontSize = 28;
+    textBlock.fontFamily = "GameFont, Arial, sans-serif";
     textBlock.fontWeight = "bold";
 
     healthBarUI.guiTexture.addControl(textBlock);

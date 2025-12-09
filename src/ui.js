@@ -211,6 +211,7 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
     titleText.text = "GAME OVER";
     titleText.color = "#ff0000";
     titleText.fontSize = 80;
+    titleText.fontFamily = "GameFont, Arial, sans-serif";
     titleText.fontWeight = "bold";
     titleText.height = "150px";
     titleText.shadowColor = "#880000";

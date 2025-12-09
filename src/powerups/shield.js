@@ -253,6 +253,7 @@ export const createShield = (scene, rocketship, camera) => {
         textBlock.text = text;
         textBlock.color = color;
         textBlock.fontSize = fontSize;
+        textBlock.fontFamily = "GameFont, Arial, sans-serif";
         textBlock.fontWeight = "bold";
         textBlock.outlineWidth = 2;
         textBlock.outlineColor = "black";

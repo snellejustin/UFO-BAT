@@ -1,3 +1,8 @@
+@font-face {
+  font-family: 'GameFont';
+  src: url('../public/assets/fonts/SuperCorn-X3xGg.ttf') format('truetype'); /* Change this to your actual font filename */
+}
+
 html, body{
   margin: 0;
   padding: 0;
