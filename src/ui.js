@@ -285,6 +285,19 @@ export const createIdleScreen = (scene, countdown, levelManager) => {
         isPlaying: false,
     };
 
+    // Preload video texture (paused initially)
+    const introVideoTexture = new BABYLON.VideoTexture("introVideo", "assets/animations/intro.mp4", scene, true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, {
+        autoPlay: false,
+        loop: false,
+        autoUpdateTexture: true
+    });
+    
+    // Ensure it doesn't play yet
+    if (introVideoTexture.video) {
+        introVideoTexture.video.pause();
+        introVideoTexture.video.currentTime = 0;
+    }
+
     const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("IdleUI", true, scene);
 
     //full screen idle image
@@ -347,7 +360,7 @@ export const createIdleScreen = (scene, countdown, levelManager) => {
 
     //helper to start game
     let motionObserver = null;
-    const startGame = () => {
+    const playIntroAndStart = () => {
         if (gameState.isPlaying) return;
         gameState.isPlaying = true;
 
@@ -356,9 +369,72 @@ export const createIdleScreen = (scene, countdown, levelManager) => {
         }
         guiTexture.dispose();
 
-        //start the game loop
-        countdown.startCountdown(() => {
-            levelManager.startFirstLevel();
+        // Create video layer using preloaded texture
+        const videoLayer = new BABYLON.Layer("introLayer", null, scene, false);
+        videoLayer.texture = introVideoTexture;
+        
+        const videoElement = introVideoTexture.video;
+        
+        videoElement.onended = () => {
+            console.log("Video ended");
+            
+            //transition
+            const transitionTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("TransitionUI", true, scene);
+            const blackScreen = new GUI.Rectangle();
+            blackScreen.width = "100%";
+            blackScreen.height = "100%";
+            blackScreen.background = "black";
+            blackScreen.thickness = 0;
+            blackScreen.alpha = 0;
+            transitionTexture.addControl(blackScreen);
+
+            const frameRate = 60;
+            const fadeAnim = new BABYLON.Animation("fade", "alpha", frameRate, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+            fadeAnim.setKeys([
+                { frame: 0, value: 0 },
+                { frame: 45, value: 1 } //0.75s fade to black
+            ]);
+
+            scene.beginDirectAnimation(blackScreen, [fadeAnim], 0, 45, false, 1, () => {
+                //cleanup video
+                introVideoTexture.dispose();
+                videoLayer.dispose();
+
+                //start Game
+                countdown.startCountdown(() => {
+                    levelManager.startFirstLevel();
+                });
+
+                //fade out black screen to reveal game
+                const fadeOutAnim = new BABYLON.Animation("fadeOut", "alpha", frameRate, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+                fadeOutAnim.setKeys([
+                    { frame: 0, value: 1 },
+                    { frame: 60, value: 0 } // 1s fade out
+                ]);
+
+                scene.beginDirectAnimation(blackScreen, [fadeOutAnim], 0, 60, false, 1, () => {
+                    transitionTexture.dispose();
+                });
+            });
+        };
+        
+        videoElement.onerror = (e) => {
+            console.error("Video error:", e);
+            introVideoTexture.dispose();
+            videoLayer.dispose();
+            countdown.startCountdown(() => {
+                levelManager.startFirstLevel();
+            });
+        };
+
+        //ensure it plays
+        videoElement.play().catch(e => {
+            console.warn("Video play failed (autoplay policy?):", e);
+            introVideoTexture.dispose();
+            videoLayer.dispose();
+            countdown.startCountdown(() => {
+                levelManager.startFirstLevel();
+            });
         });
     };
 
@@ -404,17 +480,17 @@ export const createIdleScreen = (scene, countdown, levelManager) => {
 
         //trigger start when screen is mostly white
         if (energy >= MAX_ENERGY * 0.98) { 
-            startGame();
+            playIntroAndStart();
         }
     });
 
     //click logic for game start
     idleImage.onPointerUpObservable.add(() => {
-        //resume audio context on user interaction
+        // Resume audio context on user interaction
         if (BABYLON.Engine.audioEngine && BABYLON.Engine.audioEngine.audioContext) {
             BABYLON.Engine.audioEngine.audioContext.resume();
         }
-        startGame();
+        playIntroAndStart();
     });
 
     return gameState;
