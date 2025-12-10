@@ -44,8 +44,36 @@ export const createShield = (scene, rocketship, camera) => {
 
     let updateObserver = null;
     let collisionCallback = null;
+    let registeredImpostorId = null;
 
     const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("shieldUI", true, scene);
+
+    const handleCollision = () => {
+        if (powerup) {
+            activateShield();
+            showShieldPopup();
+
+            const powerupToRemove = powerup;
+            powerup = null;
+
+            //niet meerdere keren getriggerd kan worden
+            const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
+            if (collisionCallback && collisionMesh.physicsImpostor && powerupToRemove.physicsImpostor) {
+                collisionMesh.physicsImpostor.unregisterOnPhysicsCollide(powerupToRemove.physicsImpostor, collisionCallback);
+            }
+            collisionCallback = null;
+
+            //veilig verwijderen
+            scene.onAfterPhysicsObservable.addOnce(() => {
+                const hitboxToDispose = powerupToRemove.metadata?.hitbox;
+                if (hitboxToDispose) {
+                    if (hitboxToDispose.physicsImpostor) hitboxToDispose.physicsImpostor.dispose();
+                    hitboxToDispose.dispose();
+                }
+                powerupToRemove.dispose();
+            });
+        }
+    };
 
     const loadShieldModel = async () => {
         try {
@@ -133,33 +161,12 @@ export const createShield = (scene, rocketship, camera) => {
         //check voor hitbox van rocketship te krijgen, anders gewoon rocketship zelf gebruiken
         const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
 
-        collisionCallback = () => {
-            if (powerup) {
-                activateShield();
-                showShieldPopup();
-
-                const powerupToRemove = powerup;
-                powerup = null;
-
-                //niet meerdere keren getriggerd kan worden
-                if (collisionMesh.physicsImpostor && powerupToRemove.physicsImpostor) {
-                    collisionMesh.physicsImpostor.unregisterOnPhysicsCollide(powerupToRemove.physicsImpostor, collisionCallback);
-                }
-                collisionCallback = null;
-
-                //veilig verwijderen
-                scene.onAfterPhysicsObservable.addOnce(() => {
-                    const hitboxToDispose = powerupToRemove.metadata?.hitbox;
-                    if (hitboxToDispose) {
-                        if (hitboxToDispose.physicsImpostor) hitboxToDispose.physicsImpostor.dispose();
-                        hitboxToDispose.dispose();
-                    }
-                    powerupToRemove.dispose();
-                });
-            }
-        };
-        //registreer collision van rocketship met hitbox van powerup
-        collisionMesh.physicsImpostor.registerOnPhysicsCollide(hitbox.physicsImpostor, collisionCallback);
+        if (collisionMesh.physicsImpostor) {
+            registeredImpostorId = collisionMesh.physicsImpostor.uniqueId;
+            collisionCallback = handleCollision;
+            //registreer collision van rocketship met hitbox van powerup
+            collisionMesh.physicsImpostor.registerOnPhysicsCollide(hitbox.physicsImpostor, collisionCallback);
+        }
     };
 
     const activateShield = () => {
@@ -168,6 +175,9 @@ export const createShield = (scene, rocketship, camera) => {
             shieldTimerObserver = null;
         }
 
+        if (!isShieldActive) {
+            rocketship.metadata.toggleShield(true);
+        }
         isShieldActive = true;
         let timeRemaining = SHIELD_CONFIG.duration / 1000;
 
@@ -189,6 +199,9 @@ export const createShield = (scene, rocketship, camera) => {
     };
 
     const deactivateShield = () => {
+        if (isShieldActive) {
+            rocketship.metadata.toggleShield(false);
+        }
         isShieldActive = false;
 
         if (shieldTimerObserver) {
@@ -306,6 +319,15 @@ export const createShield = (scene, rocketship, camera) => {
     updateObserver = scene.onBeforeRenderObservable.add(() => {
         if (powerup) {
             const hitbox = powerup.metadata?.hitbox;
+
+            //check for dynamic hitbox changes
+            const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
+            if (collisionMesh.physicsImpostor && collisionMesh.physicsImpostor.uniqueId !== registeredImpostorId) {
+                 registeredImpostorId = collisionMesh.physicsImpostor.uniqueId;
+                 collisionCallback = handleCollision;
+                 collisionMesh.physicsImpostor.registerOnPhysicsCollide(hitbox.physicsImpostor, collisionCallback);
+            }
+
             if (hitbox) {
                 //synchroniseer positie
                 powerup.position.copyFrom(hitbox.position);

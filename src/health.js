@@ -98,10 +98,6 @@ export const createHealthManager = async (scene, rocketship, shieldManager) => {
 
   // Botsing met Asteroïden
   const setupCollisionListener = (asteroidManager, camera) => {
-    //rocketship als collider
-    const impostor = rocketship.physicsImpostor;
-    if (!impostor) return;
-
     const onCollide = (collider, collidedAgainst) => {
       const asteroidMesh = collidedAgainst.object;
       const key = asteroidMesh.uniqueId;
@@ -122,14 +118,18 @@ export const createHealthManager = async (scene, rocketship, shieldManager) => {
 
     //luister naar alle actieve asteroïden
     const observer = scene.onBeforeRenderObservable.add(() => {
+      const currentImpostor = rocketship.physicsImpostor;
+      if (!currentImpostor) return;
+
       if (asteroidManager.active) {
         asteroidManager.active.forEach((asteroid) => {
           const hitbox = asteroid.metadata?.hitbox;
           if (!hitbox || !hitbox.physicsImpostor) return;
 
-          if (!hitbox.collisionRegistered) {
-            hitbox.collisionRegistered = true;
-            impostor.registerOnPhysicsCollide(hitbox.physicsImpostor, onCollide);
+          // Check if registered against the CURRENT impostor
+          if (hitbox.registeredImpostorId !== currentImpostor.uniqueId) {
+            currentImpostor.registerOnPhysicsCollide(hitbox.physicsImpostor, onCollide);
+            hitbox.registeredImpostorId = currentImpostor.uniqueId;
           }
         });
       }
@@ -138,10 +138,6 @@ export const createHealthManager = async (scene, rocketship, shieldManager) => {
 
   //botsing met projectielen (UFO kogels)
   const setupProjectileCollisionListener = (projectileManager, camera) => {
-    //rocketship als collider
-    const impostor = rocketship.physicsImpostor;
-    if (!impostor) return;
-
     const onProjectileCollide = (collider, collidedAgainst) => {
       const projMesh = collidedAgainst.object;
 
@@ -156,12 +152,16 @@ export const createHealthManager = async (scene, rocketship, shieldManager) => {
     };
 
     const observer = scene.onBeforeRenderObservable.add(() => {
+      const currentImpostor = rocketship.physicsImpostor;
+      if (!currentImpostor) return;
+
       if (projectileManager.projectiles) {
         projectileManager.projectiles.forEach((proj) => {
           if (proj.active && proj.mesh.physicsImpostor) {
-            if (!proj.collisionRegistered) {
-              proj.collisionRegistered = true;
-              impostor.registerOnPhysicsCollide(proj.mesh.physicsImpostor, onProjectileCollide);
+             //check if registered against the CURRENT impostor
+            if (proj.registeredImpostorId !== currentImpostor.uniqueId) {
+              currentImpostor.registerOnPhysicsCollide(proj.mesh.physicsImpostor, onProjectileCollide);
+              proj.registeredImpostorId = currentImpostor.uniqueId;
             }
           }
         });

@@ -63,7 +63,91 @@ export const createRocketship = async (scene) => {
 
         spaceship.physicsImpostor = mergedCollision.physicsImpostor;
         spaceship.metadata = {
-            collisionMesh: mergedCollision
+            collisionMesh: mergedCollision,
+            originalCollisionMesh: mergedCollision
+        };
+
+        spaceship.metadata.toggleShield = (active) => {
+            const currentVel = spaceship.physicsImpostor.getLinearVelocity();
+            
+            if (active) {
+                // Create Shield Sphere
+                const shieldMesh = BABYLON.MeshBuilder.CreateSphere("shieldSphere", { diameter: 2 }, scene);
+                shieldMesh.scaling.y = 1.5;
+                shieldMesh.position.copyFrom(spaceship.metadata.collisionMesh.position);
+                shieldMesh.position.y += 1;
+                shieldMesh.metadata = { yOffset: 1 };
+                
+                const material = new BABYLON.StandardMaterial("shieldMat", scene);
+                material.diffuseColor = new BABYLON.Color3(0, 0.5, 1);
+                material.emissiveColor = new BABYLON.Color3(0, 0.2, 0.8);
+                material.alpha = 0.4;
+                shieldMesh.material = material;
+
+                // Physics
+                shieldMesh.physicsImpostor = new BABYLON.PhysicsImpostor(
+                    shieldMesh,
+                    BABYLON.PhysicsImpostor.MeshImpostor,
+                    { mass: 2, restitution: 0.25, friction: 0.4 },
+                    scene
+                );
+                
+                // Apply physics config
+                const body = shieldMesh.physicsImpostor.physicsBody;
+                if (body) {
+                    body.linearDamping = 0.5;
+                    body.angularDamping = 1.0;
+                    body.linearFactor = new CANNON.Vec3(1, 0, 0);
+                    body.angularFactor = new CANNON.Vec3(0, 0, 0);
+                    body.fixedRotation = true;
+                    body.updateMassProperties();
+                }
+
+                // Switch
+                spaceship.physicsImpostor.dispose(); // Dispose old impostor
+                spaceship.physicsImpostor = shieldMesh.physicsImpostor;
+                spaceship.metadata.collisionMesh = shieldMesh;
+                
+                if (currentVel) shieldMesh.physicsImpostor.setLinearVelocity(currentVel);
+
+            } else {
+                // Revert
+                const shieldMesh = spaceship.metadata.collisionMesh;
+                const originalMesh = spaceship.metadata.originalCollisionMesh;
+                
+                // Restore original physics
+                 originalMesh.physicsImpostor = new BABYLON.PhysicsImpostor(
+                    originalMesh,
+                    BABYLON.PhysicsImpostor.MeshImpostor,
+                    { mass: 2, restitution: 0.25, friction: 0.4 },
+                    scene
+                );
+                
+                const body = originalMesh.physicsImpostor.physicsBody;
+                if (body) {
+                    body.linearDamping = 0.5;
+                    body.angularDamping = 1.0;
+                    body.linearFactor = new CANNON.Vec3(1, 0, 0);
+                    body.angularFactor = new CANNON.Vec3(0, 0, 0);
+                    body.fixedRotation = true;
+                    body.updateMassProperties();
+                }
+
+                // Switch back
+                spaceship.physicsImpostor = originalMesh.physicsImpostor;
+                spaceship.metadata.collisionMesh = originalMesh;
+                
+                // Sync position just in case
+                originalMesh.position.copyFrom(shieldMesh.position);
+                if (shieldMesh.metadata && shieldMesh.metadata.yOffset) {
+                    originalMesh.position.y -= shieldMesh.metadata.yOffset;
+                }
+                
+                if (currentVel) originalMesh.physicsImpostor.setLinearVelocity(currentVel);
+
+                // Cleanup shield
+                shieldMesh.dispose();
+            }
         };
     }
 
@@ -147,6 +231,9 @@ export const setupRocketshipPhysics = (scene, spaceship, inputWrapper) => {
 
         if (collisionMesh) {
             spaceship.position.copyFrom(collisionMesh.position);
+            if (collisionMesh.metadata && collisionMesh.metadata.yOffset) {
+                spaceship.position.y -= collisionMesh.metadata.yOffset;
+            }
         }
 
         const left = inputWrapper.inputMap["ArrowLeft"] ? 1 : 0;

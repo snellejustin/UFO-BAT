@@ -18,6 +18,8 @@ export const createRocketShooter = (scene, rocketship, camera, projectileManager
     let isShooting = false;
     let shootTimer = 0;
     let collisionCallback = null;
+    let registeredImpostorId = null;
+    let currentOnCollected = null;
 
     let uiTexture = null;
     let updateObserver = null;
@@ -115,10 +117,12 @@ export const createRocketShooter = (scene, rocketship, camera, projectileManager
 
         //collision met rocketship hitbox en anders met rockethship zelf
         const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
+        currentOnCollected = onCollected;
 
         if (collisionMesh.physicsImpostor) {
+            registeredImpostorId = collisionMesh.physicsImpostor.uniqueId;
             collisionCallback = () => {
-                collectPowerup(onCollected);
+                collectPowerup(currentOnCollected);
             };
             collisionMesh.physicsImpostor.registerOnPhysicsCollide(mesh.physicsImpostor, collisionCallback);
         }
@@ -153,6 +157,19 @@ export const createRocketShooter = (scene, rocketship, camera, projectileManager
 
     updateObserver = scene.onBeforeRenderObservable.add(() => {
         const dt = scene.getEngine().getDeltaTime() / 1000.0;
+
+        //check for dynamic hitbox changes (e.g. shield toggle)
+        if (activePowerup && activePowerup.physicsImpostor) {
+            const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
+            if (collisionMesh.physicsImpostor && collisionMesh.physicsImpostor.uniqueId !== registeredImpostorId) {
+                //re-register collision
+                registeredImpostorId = collisionMesh.physicsImpostor.uniqueId;
+                collisionCallback = () => {
+                    collectPowerup(currentOnCollected);
+                };
+                collisionMesh.physicsImpostor.registerOnPhysicsCollide(activePowerup.physicsImpostor, collisionCallback);
+            }
+        }
 
         if (activePowerup && activePowerup.physicsImpostor) {
             if (activePowerup.position.y <= CONFIG.hoverHeight) {

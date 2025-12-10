@@ -7,8 +7,6 @@ export const createCowManager = (scene) => {
 
     const loadCow = async () => {
         try {
-            // Try to load from blender-models first, fallback to assets root if needed
-            // But for now assuming assets/blender-models/cow.glb
             const result = await BABYLON.SceneLoader.ImportMeshAsync(
                 "",
                 "assets/blender-models/",

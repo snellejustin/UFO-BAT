@@ -34,8 +34,39 @@ export const createHealthBoost = (scene, rocketship, healthManager, camera) => {
     let isModelLoaded = false;
     let updateObserver = null;
     let collisionCallback = null;
+    let registeredImpostorId = null;
 
     const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("healthBoostUI", true, scene);
+
+    const handleCollision = () => {
+        if (powerup) {
+            const currentHealth = healthManager.getHealth();
+            const newHealth = Math.min(HEALTH_BOOST_CONFIG.maxHealth, currentHealth + HEALTH_BOOST_CONFIG.healAmount);
+            healthManager.setHealth(newHealth);
+
+            showHealPopup(newHealth - currentHealth, camera);
+
+            const powerupToRemove = powerup;
+            powerup = null;
+
+            //niet meerdere keren getriggerd kan worden
+            const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
+            if (collisionCallback && powerupToRemove.physicsImpostor && collisionMesh.physicsImpostor) {
+                collisionMesh.physicsImpostor.unregisterOnPhysicsCollide(powerupToRemove.physicsImpostor, collisionCallback);
+            }
+            collisionCallback = null;
+
+            //veilig verwijderen
+            scene.onAfterPhysicsObservable.addOnce(() => {
+                const hitboxToDispose = powerupToRemove.metadata?.hitbox;
+                if (hitboxToDispose) {
+                    if (hitboxToDispose.physicsImpostor) hitboxToDispose.physicsImpostor.dispose();
+                    hitboxToDispose.dispose();
+                }
+                powerupToRemove.dispose();
+            });
+        }
+    };
 
     const loadHealthBoostModel = async () => {
         try {
@@ -126,36 +157,12 @@ export const createHealthBoost = (scene, rocketship, healthManager, camera) => {
         //check voor hitbox van rocketship te krijgen, anders gewoon rocketship zelf gebruiken
         const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
 
-        collisionCallback = () => {
-            if (powerup) {
-                const currentHealth = healthManager.getHealth();
-                const newHealth = Math.min(HEALTH_BOOST_CONFIG.maxHealth, currentHealth + HEALTH_BOOST_CONFIG.healAmount);
-                healthManager.setHealth(newHealth);
-
-                showHealPopup(newHealth - currentHealth, camera);
-
-                const powerupToRemove = powerup;
-                powerup = null;
-
-                //niet meerdere keren getriggerd kan worden
-                if (collisionCallback && powerupToRemove.physicsImpostor) {
-                    collisionMesh.physicsImpostor.unregisterOnPhysicsCollide(powerupToRemove.physicsImpostor, collisionCallback);
-                }
-                collisionCallback = null;
-
-                //veilig verwijderen
-                scene.onAfterPhysicsObservable.addOnce(() => {
-                    const hitboxToDispose = powerupToRemove.metadata?.hitbox;
-                    if (hitboxToDispose) {
-                        if (hitboxToDispose.physicsImpostor) hitboxToDispose.physicsImpostor.dispose();
-                        hitboxToDispose.dispose();
-                    }
-                    powerupToRemove.dispose();
-                });
-            }
-        };
-        //registreer collision van rocketship met hitbox van powerup
-        collisionMesh.physicsImpostor.registerOnPhysicsCollide(hitbox.physicsImpostor, collisionCallback);
+        if (collisionMesh.physicsImpostor) {
+            registeredImpostorId = collisionMesh.physicsImpostor.uniqueId;
+            collisionCallback = handleCollision;
+            //registreer collision van rocketship met hitbox van powerup
+            collisionMesh.physicsImpostor.registerOnPhysicsCollide(hitbox.physicsImpostor, collisionCallback);
+        }
     };
 
     const showHealPopup = (amount) => {
@@ -230,6 +237,15 @@ export const createHealthBoost = (scene, rocketship, healthManager, camera) => {
         if (!powerup) return;
 
         const hitbox = powerup.metadata?.hitbox;
+
+        //check for dynamic hitbox changes
+        const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
+        if (collisionMesh.physicsImpostor && collisionMesh.physicsImpostor.uniqueId !== registeredImpostorId) {
+             registeredImpostorId = collisionMesh.physicsImpostor.uniqueId;
+             collisionCallback = handleCollision;
+             collisionMesh.physicsImpostor.registerOnPhysicsCollide(hitbox.physicsImpostor, collisionCallback);
+        }
+
         if (hitbox) {
             //synchroniseer positie
             powerup.position.copyFrom(hitbox.position);
