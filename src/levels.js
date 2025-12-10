@@ -455,6 +455,7 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
         isWaveActive = false;
         currentLevelIndex = 0;
         asteroidSystem.manager.isActive = false;
+        cowManager.reset();
 
         if (levelTextControl) {
             levelTextControl.isVisible = false;

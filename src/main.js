@@ -84,8 +84,12 @@ const initGame = async () => {
   };
 
   const handleGameOver = async () => {
+    if (uiState.isGameOverProcessing) return;
+    uiState.isGameOverProcessing = true;
+
     //stop alles direct
     uiState.isPlaying = false;
+    healthManager.setPaused(true);
     asteroidSystem.manager.isActive = false;
     levelManager.stop();
     ufo.stop();
@@ -100,8 +104,10 @@ const initGame = async () => {
       scene,
       //RESTART CALLBACK (Direct opnieuw spelen)
       () => {
+        uiState.isGameOverProcessing = false;
         //voer resets uit NA de physics stap om crashes te voorkomen
         scene.onAfterPhysicsObservable.addOnce(() => {
+          healthManager.setPaused(false);
           healthManager.setHealth(100);
           asteroidSystem.reset();
           projectileManager.reset();
@@ -126,11 +132,13 @@ const initGame = async () => {
       },
       //QUIT CALLBACK (Terug naar hoofdmenu)
       () => {
+        uiState.isGameOverProcessing = false;
         //stop music on quit
         backgroundMusic.stop();
 
         scene.onAfterPhysicsObservable.addOnce(() => {
           //reset alles naar beginstaat
+          healthManager.setPaused(false);
           healthManager.setHealth(100);
           asteroidSystem.reset();
           projectileManager.reset();

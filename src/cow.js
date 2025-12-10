@@ -25,6 +25,8 @@ export const createCowManager = (scene) => {
 
     loadCow();
 
+    const activeCows = [];
+
     const spawnCow = (direction = 'left-to-right') => {
         if (!isLoaded || !cowModel) return;
 
@@ -74,11 +76,27 @@ export const createCowManager = (scene) => {
                 console.log("Cow reached end of path, disposing");
                 cow.dispose();
                 scene.onBeforeRenderObservable.remove(observer);
+                const index = activeCows.indexOf(cow);
+                if (index > -1) activeCows.splice(index, 1);
             }
         });
+        
+        cow.metadata = { observer };
+        activeCows.push(cow);
+    };
+
+    const reset = () => {
+        activeCows.forEach(cow => {
+            if (cow.metadata && cow.metadata.observer) {
+                scene.onBeforeRenderObservable.remove(cow.metadata.observer);
+            }
+            cow.dispose();
+        });
+        activeCows.length = 0;
     };
 
     return {
-        spawnCow
+        spawnCow,
+        reset
     };
 };

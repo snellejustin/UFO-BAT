@@ -8,6 +8,8 @@ export const createHealthManager = async (scene, rocketship, shieldManager) => {
   const damageCooldown = 500; // ms voor zelfde asteroid damage te voorkomen
   const lastDamageTime = new Map();
   let onGameOverCallback = null;
+  let isPaused = false;
+  let isDead = false;
 
   const healthBarUI = createHealthBarUI(scene);
 
@@ -81,7 +83,7 @@ export const createHealthManager = async (scene, rocketship, shieldManager) => {
   };
 
   const takeDamage = (damage, camera) => {
-    if (shieldManager.isShieldActive()) {
+    if (shieldManager.isShieldActive() || isDead) {
       return;
     }
 
@@ -92,6 +94,7 @@ export const createHealthManager = async (scene, rocketship, shieldManager) => {
 
     // Check game over
     if (health <= 0 && onGameOverCallback) {
+      isDead = true;
       onGameOverCallback();
     }
   };
@@ -118,6 +121,7 @@ export const createHealthManager = async (scene, rocketship, shieldManager) => {
 
     //luister naar alle actieve asteroïden
     const observer = scene.onBeforeRenderObservable.add(() => {
+      if (isPaused) return;
       const currentImpostor = rocketship.physicsImpostor;
       if (!currentImpostor) return;
 
@@ -152,6 +156,7 @@ export const createHealthManager = async (scene, rocketship, shieldManager) => {
     };
 
     const observer = scene.onBeforeRenderObservable.add(() => {
+      if (isPaused) return;
       const currentImpostor = rocketship.physicsImpostor;
       if (!currentImpostor) return;
 
@@ -179,7 +184,11 @@ export const createHealthManager = async (scene, rocketship, shieldManager) => {
     getHealth: () => health,
     setHealth: (value) => {
       health = Math.max(0, Math.min(value, maxHealth));
+      if (health > 0) isDead = false;
       updateHealthBar();
+    },
+    setPaused: (paused) => {
+      isPaused = paused;
     },
     setOnGameOver: (callback) => {
       onGameOverCallback = callback;
