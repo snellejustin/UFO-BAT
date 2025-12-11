@@ -2,7 +2,7 @@ import { createScene, disableCameraArrowKeys } from './scene.js';
 import { createRocketship, setupRocketshipPhysics, setupArrowKeys } from './rocketship.js';
 import { createEngine, startRenderLoop } from './engine.js';
 import { createAsteroidManager } from './asteroids.js';
-import { createIdleScreen, createLevelProgressBar, createGameOverScreen } from './ui.js';
+import { createIdleScreen, createLevelProgressBar, createGameOverScreen, playEndSequence } from './ui.js';
 import { createHealthManager } from './health.js';
 import { createCountdown } from './countdown.js';
 import { createLevelManager } from './levels.js';
@@ -53,6 +53,45 @@ const initGame = async () => {
   //UI elementen
   const levelProgressBar = createLevelProgressBar(scene, 5);
 
+  let uiState = null;
+
+  const handleGameComplete = () => {
+      //stop game logic
+      if (uiState) uiState.isPlaying = false;
+      healthManager.setPaused(true);
+      asteroidSystem.manager.isActive = false;
+      levelManager.stop();
+      ufo.stop();
+      backgroundMusic.stop();
+      
+      //stop shooting immediately
+      rocketShooter.reset();
+      projectileManager.reset(); //clear existing projectiles so they don't make noise during video
+
+      playEndSequence(scene, uiState ? uiState.outroVideoTexture : null, () => {
+          //reset game to idle state
+          scene.onAfterPhysicsObservable.addOnce(() => {
+              healthManager.setPaused(false);
+              healthManager.setHealth(100);
+              asteroidSystem.reset();
+              projectileManager.reset();
+              levelManager.reset();
+              if (levelManager.resetPracticeState) {
+                  levelManager.resetPracticeState();
+              }
+              ufo.reset();
+              healthBoost.reset();
+              shield.reset();
+              rocketShooter.reset();
+              levelProgressBar.reset();
+              
+              //recreate idle screen
+              if (uiState && uiState.dispose) uiState.dispose();
+              uiState = createIdleScreen(scene, countdown, levelManager);
+          });
+      });
+  };
+
   //level manager
   const levelManager = createLevelManager(
     scene,
@@ -62,7 +101,8 @@ const initGame = async () => {
     shield,
     projectileManager,
     rocketShooter,
-    levelProgressBar
+    levelProgressBar,
+    handleGameComplete
   );
 
   //input & physics
@@ -76,7 +116,7 @@ const initGame = async () => {
 
   engine.hideLoadingUI();
 
-  let uiState = createIdleScreen(scene, countdown, levelManager);
+  uiState = createIdleScreen(scene, countdown, levelManager);
   
   //start music when countdown starts
   countdown.onCountdownStart = () => {

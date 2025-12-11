@@ -3,7 +3,7 @@ import { Animation } from "@babylonjs/core";
 import { sensorData } from "./witmotion.js";
 import { createCowManager } from "./cow.js";
 
-export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shield, projectileManager, rocketShooter, levelProgressBar) => {
+export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shield, projectileManager, rocketShooter, levelProgressBar, onGameComplete) => {
     let currentLevelIndex = 0;
     let isWaveActive = false;
     let activeTimers = [];
@@ -44,7 +44,7 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
             spawnRate: 0.7,
             ufoModel: "ufoalien2.glb",
             projectileConfig: {
-                size: 0.7,
+                size: 0.3,
                 color: { r: 0.6, g: 0.0, b: 1.0 },
                 glowIntensity: 1.2
             },
@@ -63,10 +63,10 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
             level: 3,
             duration: 15000,
             asteroidSpeed: { min: 4, max: 6 },
-            spawnRate: 1,
+            spawnRate: 0.7,
             ufoModel: "ufoalien3.glb",
             projectileConfig: {
-                size: 0.2,
+                size: 0.5,
                 color: { r: 1.0, g: 0.4, b: 0.0 },
                 glowIntensity: 1.5
             },
@@ -84,12 +84,12 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
         },
         {
             level: 4,
-            duration: 20000,
-            asteroidSpeed: { min: 6, max: 8 },
-            spawnRate: 1,
+            duration: 18000,
+            asteroidSpeed: { min: 5, max: 7 },
+            spawnRate: 0.7,
             ufoModel: "ufoalien4.glb",
             projectileConfig: {
-                size: 0.2,
+                size: 0.7,
                 color: { r: 1.0, g: 1.0, b: 0.0 },
                 glowIntensity: 1.8
             },
@@ -107,12 +107,12 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
         },
         {
             level: 5,
-            duration: 22000,
-            asteroidSpeed: { min: 6, max: 8 },
+            duration: 20000,
+            asteroidSpeed: { min: 5, max: 7 },
             spawnRate: 1,
             ufoModel: "ufoalienboss.glb",
             projectileConfig: {
-                size: 1,
+                size: 0.4,
                 color: { r: 0.0, g: 0.1, b: 0.5 },
                 glowIntensity: 2.0
             },
@@ -121,10 +121,11 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
                 pathXRange: { min: -7, max: 7 },
                 pathYRange: { min: 5, max: 9 },
                 timePerPoint: 1600,
-                totalShots: 6,
+                totalShots: 20,
                 enterDuration: 1200,
                 exitDuration: 700,
-                projectileSpeed: -3
+                projectileSpeed: -3,
+                shootingPattern: "spread"
             },
             hasBossEvent: true
         }
@@ -434,11 +435,13 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
         }
 
         ufo.flyUFO(() => {
-            safeTimeout(() => {
-                if (currentLevelIndex + 1 < levels.length) {
+            if (currentLevelIndex + 1 < levels.length) {
+                safeTimeout(() => {
                     startWave(currentLevelIndex + 1);
-                }
-            }, 3000);
+                }, 3000);
+            } else {
+                if (onGameComplete) onGameComplete();
+            }
         }, currentLevelConfig.ufoConfig);
     };
 

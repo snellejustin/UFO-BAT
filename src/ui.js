@@ -492,10 +492,6 @@ const showReadyPopup = (scene, onReady) => {
 };
 
 export const createIdleScreen = (scene, countdown, levelManager) => {
-    const gameState = {
-        isPlaying: false,
-    };
-
     //preload video texture (paused initially)
     const introVideoTexture = new BABYLON.VideoTexture("introVideo", "assets/animations/intro-sound.mp4", scene, true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, {
         autoPlay: false,
@@ -508,6 +504,27 @@ export const createIdleScreen = (scene, countdown, levelManager) => {
         introVideoTexture.video.pause();
         introVideoTexture.video.currentTime = 0;
     }
+
+    //preload outro video texture
+    const outroVideoTexture = new BABYLON.VideoTexture("outroVideo", "assets/animations/end_anim_f.mp4", scene, true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, {
+        autoPlay: false,
+        loop: false,
+        autoUpdateTexture: true
+    });
+
+    if (outroVideoTexture.video) {
+        outroVideoTexture.video.pause();
+        outroVideoTexture.video.currentTime = 0;
+        outroVideoTexture.video.setAttribute('playsinline', 'true');
+    }
+
+    const gameState = {
+        isPlaying: false,
+        outroVideoTexture: outroVideoTexture,
+        dispose: () => {
+            if (outroVideoTexture) outroVideoTexture.dispose();
+        }
+    };
 
     const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("IdleUI", true, scene);
 
@@ -732,4 +749,72 @@ const createGifOverlay = (id, src, styles) => {
     });
     document.body.appendChild(img);
     return img;
+};
+
+export const playEndSequence = (scene, preloadedTexture, onComplete) => {
+    if (typeof preloadedTexture === 'function') {
+        onComplete = preloadedTexture;
+        preloadedTexture = null;
+    }
+
+    //create video layer
+    const videoLayer = new BABYLON.Layer("endVideoLayer", null, scene, false);
+    
+    let videoTexture;
+    if (preloadedTexture) {
+        videoTexture = preloadedTexture;
+    } else {
+        videoTexture = new BABYLON.VideoTexture("endVideo", "assets/animations/end_anim_f.mp4", scene, true, false, BABYLON.VideoTexture.TRILINEAR_SAMPLINGMODE, {
+            autoPlay: false,
+            loop: false,
+            autoUpdateTexture: true
+        });
+    }
+
+    videoLayer.texture = videoTexture;
+    const videoElement = videoTexture.video;
+    
+    //critical for mobile/some browsers
+    videoElement.setAttribute('playsinline', 'true');
+    videoElement.muted = false;
+
+    const cleanup = () => {
+        videoElement.onended = null;
+        
+        //fade out effect
+        const transitionTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("EndTransitionUI", true, scene);
+        const blackScreen = new GUI.Rectangle();
+        blackScreen.width = "100%";
+        blackScreen.height = "100%";
+        blackScreen.background = "black";
+        blackScreen.thickness = 0;
+        blackScreen.alpha = 0;
+        transitionTexture.addControl(blackScreen);
+
+        const frameRate = 60;
+        const fadeAnim = new BABYLON.Animation("fade", "alpha", frameRate, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+        fadeAnim.setKeys([
+            { frame: 0, value: 0 },
+            { frame: 60, value: 1 } //1s fade to black
+        ]);
+
+        scene.beginDirectAnimation(blackScreen, [fadeAnim], 0, 60, false, 1, () => {
+            videoLayer.dispose();
+            videoTexture.dispose();
+            
+            if (onComplete) onComplete();
+
+            const fadeOutAnim = new BABYLON.Animation("fadeOut", "alpha", frameRate, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+            fadeOutAnim.setKeys([
+                { frame: 0, value: 1 },
+                { frame: 60, value: 0 }
+            ]);
+
+            scene.beginDirectAnimation(blackScreen, [fadeOutAnim], 0, 60, false, 1, () => {
+                transitionTexture.dispose();
+            });
+        });
+    };
+
+    videoElement.onended = cleanup;
 };
