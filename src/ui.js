@@ -202,45 +202,84 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
     overlay.thickness = 0;
     guiTexture.addControl(overlay);
 
-    //game Over Title
-    const titleText = new GUI.TextBlock();
-    titleText.text = "GAME OVER";
-    titleText.color = "#ff0000";
-    titleText.fontSize = 80;
-    titleText.fontFamily = "GameFont, Arial, sans-serif";
-    titleText.fontWeight = "bold";
-    titleText.top = "-250px";
-    titleText.shadowColor = "#880000";
-    titleText.shadowBlur = 10;
-    guiTexture.addControl(titleText);
+    // WhatNow Image
+    const whatNowImage = new GUI.Image("whatNowImage", "assets/images/whatnow-background.png");
+    whatNowImage.width = "100%";
+    whatNowImage.height = "100%";
+    whatNowImage.stretch = GUI.Image.STRETCH_FILL;
+    guiTexture.addControl(whatNowImage);
+
+    // Restart Image (Left)
+    const restartImage = new GUI.Image("restartImage", "assets/images/restart.png");
+    restartImage.width = "370px";
+    restartImage.height = "370px";
+    restartImage.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+    restartImage.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+    restartImage.left = "200px";
+    guiTexture.addControl(restartImage);
+
+    // Quit Image (Right)
+    const quitImage = new GUI.Image("quitImage", "assets/images/quit.png");
+    quitImage.width = "370px";
+    quitImage.height = "370px";
+    quitImage.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+    quitImage.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+    quitImage.left = "-200px";
+    guiTexture.addControl(quitImage);
+
+    // Opnieuw Gif (Under Restart)
+    const opnieuwGif = createGifOverlay("opnieuwGif", "assets/gifs/Opnieuw.gif", {
+        left: "100px",
+        top: "calc(50% + 120px)",
+        width: "550px",
+        height: "auto"
+    });
+
+    // Stoppen Gif (Under Quit)
+    const stoppenGif = createGifOverlay("stoppenGif", "assets/gifs/Stoppen.gif", {
+        right: "100px",
+        top: "calc(50% + 120px)",
+        width: "550px",
+        height: "auto"
+    });
 
     // Lean Bar Container
     const barContainer = new GUI.Rectangle();
-    barContainer.width = "400px";
-    barContainer.height = "40px";
-    barContainer.background = "#333333";
-    barContainer.thickness = 2;
-    barContainer.color = "white";
+    barContainer.width = "800px";
+    barContainer.height = "50px";
+    barContainer.background = "#8B8B83";
+    barContainer.thickness = 0;
+    barContainer.cornerRadius = 25;
     barContainer.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
     barContainer.top = "-50px";
     guiTexture.addControl(barContainer);
 
-    // Center Line
-    const centerLine = new GUI.Rectangle();
-    centerLine.width = "2px";
-    centerLine.height = "100%";
-    centerLine.background = "white";
-    centerLine.thickness = 0;
-    barContainer.addControl(centerLine);
+    // Left Fill (Green)
+    const leftFill = new GUI.Rectangle();
+    leftFill.width = "0px";
+    leftFill.height = "100%";
+    leftFill.background = "#00ff00";
+    leftFill.thickness = 0;
+    leftFill.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+    barContainer.addControl(leftFill);
 
-    // Lean Indicator
-    const indicator = new GUI.Rectangle();
-    indicator.width = "20px";
-    indicator.height = "100%";
-    indicator.background = "#00BFFF";
-    indicator.thickness = 0;
-    indicator.cornerRadius = 10;
-    barContainer.addControl(indicator);
+    // Right Fill (Red)
+    const rightFill = new GUI.Rectangle();
+    rightFill.width = "0px";
+    rightFill.height = "100%";
+    rightFill.background = "#ff0000";
+    rightFill.thickness = 0;
+    rightFill.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+    barContainer.addControl(rightFill);
+
+    // Center Line (Dark Purple)
+    const centerLine = new GUI.Rectangle();
+    centerLine.width = "20px";
+    centerLine.height = "120%";
+    centerLine.background = "#1B0545";
+    centerLine.thickness = 0;
+    centerLine.cornerRadius = 10;
+    barContainer.addControl(centerLine);
 
     // Labels for the bar
     const leftLabel = new GUI.TextBlock();
@@ -261,136 +300,96 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
     rightLabel.left = "-10px";
     barContainer.addControl(rightLabel);
 
-    // 3D UI Setup
-    const UI_LAYER_MASK = 0x20000000;
-    const uiCamera = new BABYLON.FreeCamera("GameOverCamera", new BABYLON.Vector3(0, 0, -10), scene);
-    uiCamera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA;
-    uiCamera.setTarget(BABYLON.Vector3.Zero());
-    uiCamera.layerMask = UI_LAYER_MASK;
-    
-    // Orthographic bounds
-    const width = scene.getEngine().getRenderWidth();
-    const height = scene.getEngine().getRenderHeight();
-    const ratio = width / height;
-    const zoom = 4;
-    uiCamera.orthoTop = zoom;
-    uiCamera.orthoBottom = -zoom;
-    uiCamera.orthoLeft = -zoom * ratio;
-    uiCamera.orthoRight = zoom * ratio;
-
-    // Light for the models
-    const light = new BABYLON.HemisphericLight("GameOverLight", new BABYLON.Vector3(0, 1, 0), scene);
-    light.intensity = 1.5;
-    light.includeOnlyWithLayerMask = UI_LAYER_MASK;
-
-    // Manage active cameras
-    if (!scene.activeCameras || scene.activeCameras.length === 0) {
-        scene.activeCameras = [scene.activeCamera];
-    }
-    scene.activeCameras.push(uiCamera);
-
-    let restartMesh = null;
-    let stopMesh = null;
-    let isDisposed = false;
-
-    // Load Models
-    const loadModels = async () => {
-        try {
-            // Restart Model (Left)
-            const restartResult = await BABYLON.SceneLoader.ImportMeshAsync("", "assets/blender-models/", "restart.glb", scene);
-            if (isDisposed) {
-                restartResult.meshes.forEach(m => m.dispose());
-                return;
-            }
-            restartMesh = restartResult.meshes[0];
-            restartMesh.position.x = -2.5; // Left
-            restartMesh.position.y = 0;
-            restartMesh.scaling.setAll(0.5); 
-            
-            // Apply layer mask to all children
-            restartResult.meshes.forEach(m => {
-                m.layerMask = UI_LAYER_MASK;
-                m.isPickable = false;
-            });
-
-            // Stop Model (Right)
-            const stopResult = await BABYLON.SceneLoader.ImportMeshAsync("", "assets/blender-models/", "stop.glb", scene);
-            if (isDisposed) {
-                stopResult.meshes.forEach(m => m.dispose());
-                return;
-            }
-            stopMesh = stopResult.meshes[0];
-            stopMesh.position.x = 2.5; // Right
-            stopMesh.position.y = 0;
-            stopMesh.scaling.setAll(0.5); 
-
-            stopResult.meshes.forEach(m => {
-                m.layerMask = UI_LAYER_MASK;
-                m.isPickable = false;
-            });
-
-        } catch (err) {
-            console.error("Error loading game over models:", err);
-        }
-    };
-    loadModels();
-
     // Logic Loop
-    const MAX_LEAN = 20; // Degrees
+    const MAX_LEAN = 3; // Degrees
     const THRESHOLD = 3; // Degrees to trigger
     let triggerTimer = 0;
+    let autoQuitTimer = 15000; // 15 seconds
+    let currentLerpedRoll = 0;
+
+    // Timer Text
+    const timerText = new GUI.TextBlock();
+    timerText.text = "15";
+    timerText.color = "#3C2C00";
+    timerText.fontSize = 70;
+    timerText.fontFamily = "GameFont, Arial, sans-serif";
+    timerText.fontWeight = "bold";
+    timerText.top = "0px";
+    guiTexture.addControl(timerText);
+
+    // What Now Text
+    const whatNowText = new GUI.TextBlock();
+    whatNowText.text = "wat wil je nu doen?";
+    whatNowText.color = "#3C2C00";
+    whatNowText.fontSize = 50;
+    whatNowText.fontFamily = "GameFont, Arial, sans-serif";
+    whatNowText.fontWeight = "bold";
+    whatNowText.top = "-350px";
+    guiTexture.addControl(whatNowText);
 
     const observer = scene.onBeforeRenderObservable.add(() => {
-        const roll = sensorData.roll || 0;
+        const dt = scene.getEngine().getDeltaTime();
+        const targetRoll = sensorData.roll || 0;
+
+        // Lerp
+        currentLerpedRoll = BABYLON.Scalar.Lerp(currentLerpedRoll, targetRoll, 0.1);
+
+        // Auto Quit Timer
+        autoQuitTimer -= dt;
+        timerText.text = Math.ceil(autoQuitTimer / 1000).toString();
+
+        if (autoQuitTimer <= 0) {
+            cleanup();
+            if (onQuit) onQuit();
+            return;
+        }
         
         // Update Bar
-        const clampedRoll = Math.max(-MAX_LEAN, Math.min(MAX_LEAN, roll));
-        const xPos = (clampedRoll / MAX_LEAN) * 190; // Keep inside padding
-        indicator.left = `${xPos}px`;
+        const clampedRoll = Math.max(-MAX_LEAN, Math.min(MAX_LEAN, currentLerpedRoll));
+        const halfWidth = 400; // Half of 800px container
 
-        // Color feedback
-        if (roll < -THRESHOLD) {
-            indicator.background = "#00ff00"; // Green for restart
-            if (restartMesh) restartMesh.scaling.setAll(0.6); // Pulse effect
-            if (stopMesh) stopMesh.scaling.setAll(0.5);
-            
-            triggerTimer += scene.getEngine().getDeltaTime();
+        if (clampedRoll < 0) {
+            // Leaning Left -> Green Fill
+            const fillWidth = (Math.abs(clampedRoll) / MAX_LEAN) * halfWidth;
+            leftFill.width = `${fillWidth}px`;
+            leftFill.left = `-${fillWidth / 2}px`;
+            rightFill.width = "0px";
+        } else {
+            // Leaning Right -> Red Fill
+            const fillWidth = (clampedRoll / MAX_LEAN) * halfWidth;
+            rightFill.width = `${fillWidth}px`;
+            rightFill.left = `${fillWidth / 2}px`;
+            leftFill.width = "0px";
+        }
+
+        // Color feedback (Logic triggers)
+        if (currentLerpedRoll < -THRESHOLD) {
+            // indicator.background = "#00ff00"; // Removed indicator
+        
+            triggerTimer += dt;
             if (triggerTimer > 1000) { // Hold for 1 second
                 cleanup();
                 if (onRestart) onRestart();
             }
-        } else if (roll > THRESHOLD) {
-            indicator.background = "#ff0000"; // Red for stop
-            if (stopMesh) stopMesh.scaling.setAll(0.6);
-            if (restartMesh) restartMesh.scaling.setAll(0.5);
+        } else if (currentLerpedRoll > THRESHOLD) {
+            // indicator.background = "#ff0000"; // Removed indicator
 
-            triggerTimer += scene.getEngine().getDeltaTime();
+            triggerTimer += dt;
             if (triggerTimer > 1000) {
                 cleanup();
                 if (onQuit) onQuit();
             }
         } else {
-            indicator.background = "#00BFFF"; // Neutral
+            // indicator.background = "#00BFFF"; // Removed indicator
             triggerTimer = 0;
-            if (restartMesh) restartMesh.scaling.setAll(0.5);
-            if (stopMesh) stopMesh.scaling.setAll(0.5);
         }
     });
 
     const cleanup = () => {
-        isDisposed = true;
         if (guiTexture) guiTexture.dispose();
-        if (uiCamera) {
-            const index = scene.activeCameras.indexOf(uiCamera);
-            if (index !== -1) scene.activeCameras.splice(index, 1);
-            uiCamera.dispose();
-        }
-        if (light) light.dispose();
-        if (restartMesh) {
-            restartMesh.dispose();
-        }
-        if (stopMesh) stopMesh.dispose();
         if (observer) scene.onBeforeRenderObservable.remove(observer);
+        if (opnieuwGif) opnieuwGif.remove();
+        if (stoppenGif) stoppenGif.remove();
     };
 
     return {
