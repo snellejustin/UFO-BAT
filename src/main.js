@@ -156,7 +156,7 @@ const initGame = async () => {
           healthBoost.reset();
           shield.reset();
           rocketShooter.reset();
-          levelProgressBar.updateProgress(0);
+          levelProgressBar.reset();
 
           //start direct de countdown
           countdown.startCountdown(() => {
@@ -190,7 +190,7 @@ const initGame = async () => {
           healthBoost.reset();
           shield.reset();
           rocketShooter.reset();
-          levelProgressBar.updateProgress(0);
+          levelProgressBar.reset();
           uiState = createIdleScreen(scene, countdown, levelManager);
           uiState.isPlaying = false;
         });
