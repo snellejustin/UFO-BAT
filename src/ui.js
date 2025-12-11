@@ -817,4 +817,18 @@ export const playEndSequence = (scene, preloadedTexture, onComplete) => {
     };
 
     videoElement.onended = cleanup;
+
+    // Ensure video plays
+    const playPromise = videoElement.play();
+    if (playPromise !== undefined) {
+        playPromise.catch(e => {
+            console.warn("End video play failed:", e);
+            // Try muted if unmuted failed (autoplay policy)
+            videoElement.muted = true;
+            videoElement.play().catch(e2 => {
+                console.error("End video play failed again:", e2);
+                cleanup();
+            });
+        });
+    }
 };

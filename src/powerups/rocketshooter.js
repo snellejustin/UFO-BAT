@@ -76,7 +76,7 @@ export const createRocketShooter = (scene, rocketship, camera, projectileManager
             const model = result.meshes[0];
             model.parent = mesh;
             model.position.setAll(0);
-            model.scaling.setAll(0.7); 
+            model.scaling.setAll(0.7);
 
             // Add rotation animation
             const rotationObserver = scene.onBeforeRenderObservable.add(() => {

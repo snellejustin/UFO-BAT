@@ -39,7 +39,7 @@ export const createScene = (engine) => {
 
     //glow layer
     const gl = new BABYLON.GlowLayer("glow", scene);
-    gl.intensity = 0.02;
+    gl.intensity = 0.6;
 
     const skyboxOuter = createSkyboxLayer(scene, "skyBoxOuter", 1000, 1.0, "textures/space");
     const skyboxInner = createSkyboxLayer(scene, "skyBoxInner", 500, 0.4, "textures/space");

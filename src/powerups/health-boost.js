@@ -80,7 +80,7 @@ export const createHealthBoost = (scene, rocketship, healthManager, camera) => {
             //mesh zoeken en opslaan
             healthBoostModel = result.meshes[0];
             healthBoostModel.name = "healthBoost_source";
-            healthBoostModel.setEnabled(false);
+            healthBoostModel.setEnabled(false)
 
             isModelLoaded = true;
         } catch (error) {

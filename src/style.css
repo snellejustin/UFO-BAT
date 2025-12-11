@@ -1,6 +1,6 @@
 @font-face {
   font-family: 'GameFont';
-  src: url('../public/assets/fonts/SuperCorn-X3xGg.ttf') format('truetype'); /* Change this to your actual font filename */
+  src: url('../public/assets/fonts/SuperCorn-X3xGg.ttf') format('truetype');
 }
 
 html, body{

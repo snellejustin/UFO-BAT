@@ -9,7 +9,8 @@ const UFO_CONFIG = {
     pathYRange: { min: 4, max: 7 },
     rotationSpeed: 0.001,
     bossHitboxDiameter: 4.0,
-    bossPhysics: { mass: 0, restitution: 0.1, friction: 0 }
+    bossPhysics: { mass: 0, restitution: 0.1, friction: 0 },
+    glowIntensity: 1.0
 };
 
 const smoothStep = (t) => t * t * (3 - 2 * t);
@@ -78,8 +79,6 @@ export const createUFO = async (scene, projectileManager) => {
         ufoRoot.setEnabled(false);
 
         const childMeshes = visualResult.meshes.filter(m => m !== visualRoot);
-        childMeshes.forEach(m => m.rotation.x = BABYLON.Tools.ToRadians(UFO_CONFIG.rotation.default));
-
         ufoAssets.set(filename, { root: ufoRoot, visuals: childMeshes });
     }));
 
