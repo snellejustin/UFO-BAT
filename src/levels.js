@@ -521,6 +521,7 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
         stop,
         cleanup,
         resetPracticeState: () => { hasCompletedPractice = false; },
+        skipPractice: () => { hasCompletedPractice = true; },
         getCurrentLevel: () => currentLevelIndex + 1,
         isWaveActive: () => isWaveActive,
         levels

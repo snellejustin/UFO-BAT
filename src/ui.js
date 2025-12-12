@@ -518,11 +518,14 @@ export const createIdleScreen = (scene, countdown, levelManager) => {
         outroVideoTexture.video.setAttribute('playsinline', 'true');
     }
 
+    let onKeyDown;
+
     const gameState = {
         isPlaying: false,
         outroVideoTexture: outroVideoTexture,
         dispose: () => {
             if (outroVideoTexture) outroVideoTexture.dispose();
+            if (onKeyDown) window.removeEventListener("keydown", onKeyDown);
         }
     };
 
@@ -599,6 +602,8 @@ export const createIdleScreen = (scene, countdown, levelManager) => {
     const playIntroAndStart = () => {
         if (gameState.isPlaying) return;
         gameState.isPlaying = true;
+
+        if (onKeyDown) window.removeEventListener("keydown", onKeyDown);
 
         if (motionObserver) {
             scene.onBeforeRenderObservable.remove(motionObserver);
@@ -732,6 +737,37 @@ export const createIdleScreen = (scene, countdown, levelManager) => {
         }
         playIntroAndStart();
     });
+
+    //s cheatcode om te starten zonder intro video
+    onKeyDown = (e) => {
+        if (e.key.toLowerCase() === 's' && !gameState.isPlaying) {
+            if (BABYLON.Engine.audioEngine && BABYLON.Engine.audioEngine.audioContext) {
+                BABYLON.Engine.audioEngine.audioContext.resume();
+            }
+            
+            gameState.isPlaying = true;
+            
+            //cleanup idle screen
+            if (motionObserver) {
+                scene.onBeforeRenderObservable.remove(motionObserver);
+            }
+            guiTexture.dispose();
+            const gif = document.getElementById("idleGif");
+            if (gif) gif.remove();
+            
+            if (levelManager.skipPractice) {
+                levelManager.skipPractice();
+            }
+            
+            //start game directly
+            countdown.startCountdown(() => {
+                levelManager.startFirstLevel();
+            });
+            
+            window.removeEventListener("keydown", onKeyDown);
+        }
+    };
+    window.addEventListener("keydown", onKeyDown);
 
     return gameState;
 };
