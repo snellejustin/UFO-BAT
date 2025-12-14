@@ -107,7 +107,7 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
         // },
         {
             level: 5,
-            duration: 20000,
+            duration: 2000,
             asteroidSpeed: { min: 5, max: 7 },
             spawnRate: 1,
             ufoModel: "ufoalienboss.glb",

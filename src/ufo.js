@@ -1,4 +1,5 @@
 import * as BABYLON from '@babylonjs/core';
+import * as GUI from '@babylonjs/gui';
 import '@babylonjs/loaders/glTF';
 
 const UFO_CONFIG = {
@@ -24,6 +25,52 @@ export const createUFO = async (scene, projectileManager) => {
 
     // Variabelen voor Boss state
     let bossHealth = 3;
+    let bossHealthUI = null;
+
+    const createBossHealthUI = (maxHealth) => {
+        const advancedTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("BossHealthUI", true, scene);
+        
+        const panel = new GUI.StackPanel();
+        panel.isVertical = false;
+        panel.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+        panel.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+        panel.top = "50px";
+        panel.height = "60px";
+        advancedTexture.addControl(panel);
+
+        const bossHeart = [];
+        for (let i = 0; i < maxHealth; i++) {
+            const heart = new GUI.Ellipse();
+            heart.width = "40px";
+            heart.height = "40px";
+            heart.color = "white";
+            heart.thickness = 2;
+            heart.background = "red";
+            // heart.paddingLeft = "10px";
+            // heart.paddingRight = "10px";
+            panel.addControl(heart);
+            bossHeart.push(heart);
+        }
+
+        return {
+            update: (currentHealth) => {
+                bossHeart.forEach((heart, index) => {
+                    // Note: bossHeart are added 0, 1, 2. 
+                    // If health is 2, we want index 0 and 1 to be red, index 2 to be gray.
+                    // Actually, usually health bars deplete from right to left or top to bottom.
+                    // If we want to show "lives lost", turning the last one gray makes sense.
+                    if (index < currentHealth) {
+                        heart.background = "red";
+                    } else {
+                        heart.background = "gray";
+                    }
+                });
+            },
+            dispose: () => {
+                advancedTexture.dispose();
+            }
+        };
+    };
 
     const modelFiles = ["ufoalien1.glb", "ufoalien2.glb", "ufoalien3.glb", "ufoalien4.glb", "ufoalienboss.glb"];
 
@@ -118,6 +165,11 @@ export const createUFO = async (scene, projectileManager) => {
             currentActiveUfo._collisionObserver = null;
         }
 
+        if (bossHealthUI) {
+            bossHealthUI.dispose();
+            bossHealthUI = null;
+        }
+
         isFlying = false;
 
         // Zorg dat hij fysiek stilstaat
@@ -156,6 +208,11 @@ export const createUFO = async (scene, projectileManager) => {
 
         const isBoss = currentActiveUfo === ufoAssets.get("ufoalienboss.glb");
         bossHealth = 3;
+
+        if (isBoss) {
+            if (bossHealthUI) bossHealthUI.dispose();
+            bossHealthUI = createBossHealthUI(bossHealth);
+        }
 
         const config = {
             pathPoints: difficultyConfig.pathPoints ?? UFO_CONFIG.pathPoints,
@@ -206,6 +263,10 @@ export const createUFO = async (scene, projectileManager) => {
                     bossHealth--;
                     console.log(`BOSS HIT! Health remaining: ${bossHealth}`);
 
+                    if (bossHealthUI) {
+                        bossHealthUI.update(bossHealth);
+                    }
+
                     if (currentActiveUfo.visuals) {
                         currentActiveUfo.visuals.forEach(m => {
                             if (m.material) {
@@ -219,6 +280,10 @@ export const createUFO = async (scene, projectileManager) => {
                     }
 
                     if (bossHealth <= 0) {
+                        if (bossHealthUI) {
+                            bossHealthUI.dispose();
+                            bossHealthUI = null;
+                        }
                         const currentPos = currentActiveUfo.root.position;
                         path.length = 0;
                         path.push(new BABYLON.Vector2(currentPos.x, currentPos.y));
