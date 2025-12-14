@@ -8,26 +8,28 @@ export const createHealthBarUI = (scene) => {
     const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("HealthUI", true, scene);
 
     const rudyImage = new GUI.Image("rudyImage", "assets/images/UIexportRudy.png");
-    rudyImage.width = "240px";
-    rudyImage.height = "180px";
+    rudyImage.width = "17%";
+    rudyImage.height = "25%"; // Set sufficient height for aspect ratio
+    rudyImage.stretch = GUI.Image.STRETCH_UNIFORM;
     rudyImage.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
     rudyImage.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
-    rudyImage.left = "40px";
-    rudyImage.top = "-30px";
+    rudyImage.left = "2%";
+    rudyImage.top = "-1.8%";
     guiTexture.addControl(rudyImage);
 
     const healthBarBgImage = new GUI.Image("healthBarBg", "assets/images/UIexportHealthbar.png");
-    healthBarBgImage.width = "250px";
-    healthBarBgImage.height = "60px";
+    healthBarBgImage.width = "15%";
+    healthBarBgImage.height = "10%";
+    healthBarBgImage.stretch = GUI.Image.STRETCH_UNIFORM;
     healthBarBgImage.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
     healthBarBgImage.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
-    healthBarBgImage.left = "220px";
-    healthBarBgImage.top = "-40px";
+    healthBarBgImage.left = "15%";
+    healthBarBgImage.top = "-4%";
     guiTexture.addControl(healthBarBgImage);
 
     const healthBarContainer = new GUI.Rectangle("healthBarContainer");
-    healthBarContainer.width = "170px";
-    healthBarContainer.height = "20px";
+    healthBarContainer.width = "10%";
+    healthBarContainer.height = "20px"; 
     healthBarContainer.cornerRadius = 4;
     healthBarContainer.color = "transparent";
     healthBarContainer.thickness = 0;
@@ -35,8 +37,8 @@ export const createHealthBarUI = (scene) => {
 
     healthBarContainer.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
     healthBarContainer.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
-    healthBarContainer.left = "290px";
-    healthBarContainer.top = "-60px";
+    healthBarContainer.left = "19.5%";
+    healthBarContainer.top = "-8%";
 
     guiTexture.addControl(healthBarContainer);
 
@@ -49,6 +51,13 @@ export const createHealthBarUI = (scene) => {
     healthBarInner.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
 
     healthBarContainer.addControl(healthBarInner);
+
+    //maintain aspect ratio (approx 0.12 based on original 170x20)
+    const aspectRatioObserver = scene.onBeforeRenderObservable.add(() => {
+        if (healthBarContainer.widthInPixels > 0) {
+            healthBarContainer.heightInPixels = healthBarContainer.widthInPixels * 0.12;
+        }
+    });
 
     return {
         guiTexture,
@@ -63,6 +72,7 @@ export const createHealthBarUI = (scene) => {
         },
         dispose: () => {
             if (guiTexture) guiTexture.dispose();
+            if (aspectRatioObserver) scene.onBeforeRenderObservable.remove(aspectRatioObserver);
         }
     };
 };
@@ -71,23 +81,24 @@ export const createLevelProgressBar = (scene, totalLevels = 5) => {
     const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("LevelProgressUI", true, scene);
 
     const mainWrapper = new GUI.Container("mainWrapper");
-    mainWrapper.width = "100px";
+    mainWrapper.width = "5%";
     mainWrapper.height = "70%";
     mainWrapper.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
     mainWrapper.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
-    mainWrapper.left = "-20px";
+    mainWrapper.left = "-2%";
     mainWrapper.clipChildren = false;
     guiTexture.addControl(mainWrapper);
 
     const cowImage = new GUI.Image("cowImage", "assets/images/progressbar/cow.png");
-    cowImage.width = "80px";
-    cowImage.height = "80px";
+    cowImage.width = "100%";
+    cowImage.height = "20%";
+    cowImage.stretch = GUI.Image.STRETCH_UNIFORM;
     cowImage.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
     cowImage.zIndex = 10;
     mainWrapper.addControl(cowImage);
 
     const progressBarContainer = new GUI.Container("progressBarContainer");
-    progressBarContainer.widthInPixels = 50;
+    progressBarContainer.width = "70%";
     progressBarContainer.height = "92%";
     progressBarContainer.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
     mainWrapper.addControl(progressBarContainer);
@@ -118,6 +129,7 @@ export const createLevelProgressBar = (scene, totalLevels = 5) => {
         );
         checkpoint.width = "50px";
         checkpoint.height = "50px";
+        checkpoint.stretch = GUI.Image.STRETCH_UNIFORM;
         checkpoint.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
         checkpoint.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
         //position based on start of level (0%, 20%, 40%...)
