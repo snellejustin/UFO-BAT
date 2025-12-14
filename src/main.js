@@ -2,7 +2,8 @@ import { createScene, disableCameraArrowKeys } from './scene.js';
 import { createRocketship, setupRocketshipPhysics, setupArrowKeys } from './rocketship.js';
 import { createEngine, startRenderLoop } from './engine.js';
 import { createAsteroidManager } from './asteroids.js';
-import { createIdleScreen, createLevelProgressBar, createGameOverScreen, playEndSequence } from './ui.js';
+import { createIdleScreen, createLevelProgressBar, createGameOverScreen } from './ui.js';
+import { playEndSequence, playGameOverSequence } from './videos.js';
 import { createHealthManager } from './health.js';
 import { createCountdown } from './countdown.js';
 import { createLevelManager } from './levels.js';
@@ -68,7 +69,7 @@ const initGame = async () => {
       rocketShooter.reset();
       projectileManager.reset(); //clear existing projectiles so they don't make noise during video
 
-      playEndSequence(scene, uiState ? uiState.outroVideoTexture : null, () => {
+      playEndSequence(scene, uiState ? uiState.outroVideoTexture : null, uiState ? uiState.victoryVideoTexture : null, () => {
           //reset game to idle state
           scene.onAfterPhysicsObservable.addOnce(() => {
               healthManager.setPaused(false);
@@ -133,69 +134,74 @@ const initGame = async () => {
     asteroidSystem.manager.isActive = false;
     levelManager.stop();
     ufo.stop();
+    backgroundMusic.stop(); // Stop music immediately on death
 
     //reset powerups zodat ze niet blijven zweven/werken
     healthBoost.reset();
     shield.reset();
     rocketShooter.reset();
+    projectileManager.reset(); // Clear projectiles
 
-    //toon Game Over scherm
-    await createGameOverScreen(
-      scene,
-      //RESTART CALLBACK (Direct opnieuw spelen)
-      () => {
-        uiState.isGameOverProcessing = false;
-        //voer resets uit NA de physics stap om crashes te voorkomen
-        scene.onAfterPhysicsObservable.addOnce(() => {
-          healthManager.setPaused(false);
-          healthManager.setHealth(100);
-          asteroidSystem.reset();
-          projectileManager.reset();
-          levelManager.reset();
-          ufo.reset();
-          healthBoost.reset();
-          shield.reset();
-          rocketShooter.reset();
-          levelProgressBar.reset();
+    // Play Game Over Video first
+    playGameOverSequence(scene, uiState ? uiState.gameoverVideoTexture : null, async () => {
+        //toon Game Over scherm
+        await createGameOverScreen(
+          scene,
+          //RESTART CALLBACK (Direct opnieuw spelen)
+          () => {
+            uiState.isGameOverProcessing = false;
+            //voer resets uit NA de physics stap om crashes te voorkomen
+            scene.onAfterPhysicsObservable.addOnce(() => {
+              healthManager.setPaused(false);
+              healthManager.setHealth(100);
+              asteroidSystem.reset();
+              projectileManager.reset();
+              levelManager.reset();
+              ufo.reset();
+              healthBoost.reset();
+              shield.reset();
+              rocketShooter.reset();
+              levelProgressBar.reset();
 
-          //start direct de countdown
-          countdown.startCountdown(() => {
-            uiState.isPlaying = true;
-            levelManager.startFirstLevel();
-          });
+              //start direct de countdown
+              countdown.startCountdown(() => {
+                uiState.isPlaying = true;
+                levelManager.startFirstLevel();
+              });
 
-          //ensure music is playing on restart
-          if (!backgroundMusic.isPlaying) {
-            backgroundMusic.play();
+              //ensure music is playing on restart
+              if (!backgroundMusic.isPlaying) {
+                backgroundMusic.play();
+              }
+            });
+          },
+          //QUIT CALLBACK (Terug naar hoofdmenu)
+          () => {
+            uiState.isGameOverProcessing = false;
+            //stop music on quit
+            backgroundMusic.stop();
+
+            scene.onAfterPhysicsObservable.addOnce(() => {
+              //reset alles naar beginstaat
+              healthManager.setPaused(false);
+              healthManager.setHealth(100);
+              asteroidSystem.reset();
+              projectileManager.reset();
+              levelManager.reset();
+              if (levelManager.resetPracticeState) {
+                levelManager.resetPracticeState();
+              }
+              ufo.reset();
+              healthBoost.reset();
+              shield.reset();
+              rocketShooter.reset();
+              levelProgressBar.reset();
+              uiState = createIdleScreen(scene, countdown, levelManager);
+              uiState.isPlaying = false;
+            });
           }
-        });
-      },
-      //QUIT CALLBACK (Terug naar hoofdmenu)
-      () => {
-        uiState.isGameOverProcessing = false;
-        //stop music on quit
-        backgroundMusic.stop();
-
-        scene.onAfterPhysicsObservable.addOnce(() => {
-          //reset alles naar beginstaat
-          healthManager.setPaused(false);
-          healthManager.setHealth(100);
-          asteroidSystem.reset();
-          projectileManager.reset();
-          levelManager.reset();
-          if (levelManager.resetPracticeState) {
-            levelManager.resetPracticeState();
-          }
-          ufo.reset();
-          healthBoost.reset();
-          shield.reset();
-          rocketShooter.reset();
-          levelProgressBar.reset();
-          uiState = createIdleScreen(scene, countdown, levelManager);
-          uiState.isPlaying = false;
-        });
-      }
-    );
+        );
+    });
   };
 
   healthManager.setOnGameOver(handleGameOver);

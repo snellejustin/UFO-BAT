@@ -1,6 +1,8 @@
 import { connectToWitMotion, onWitmotionDisconnect, sensorData } from './witmotion.js';
 import * as GUI from '@babylonjs/gui';
 import * as BABYLON from '@babylonjs/core';
+import { preloadVideoTextures } from './videos.js';
+import { createFadeTransition } from './effects.js';
 
 export const createHealthBarUI = (scene) => {
     const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("HealthUI", true, scene);
@@ -327,7 +329,24 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
     whatNowText.top = "-350px";
     guiTexture.addControl(whatNowText);
 
-    const observer = scene.onBeforeRenderObservable.add(() => {
+    let isTransitioning = false;
+
+    const triggerAction = (callback) => {
+        if (isTransitioning) return;
+        isTransitioning = true;
+
+        if (observer) {
+            scene.onBeforeRenderObservable.remove(observer);
+            observer = null;
+        }
+
+        createFadeTransition(scene, () => {
+            cleanup();
+            if (callback) callback();
+        });
+    };
+
+    let observer = scene.onBeforeRenderObservable.add(() => {
         const dt = scene.getEngine().getDeltaTime();
         const targetRoll = sensorData.roll || 0;
 
@@ -339,8 +358,7 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
         timerText.text = Math.ceil(autoQuitTimer / 1000).toString();
 
         if (autoQuitTimer <= 0) {
-            cleanup();
-            if (onQuit) onQuit();
+            triggerAction(onQuit);
             return;
         }
         
@@ -368,16 +386,14 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
         
             triggerTimer += dt;
             if (triggerTimer > 1000) { // Hold for 1 second
-                cleanup();
-                if (onRestart) onRestart();
+                triggerAction(onRestart);
             }
         } else if (currentLerpedRoll > THRESHOLD) {
             // indicator.background = "#ff0000"; // Removed indicator
 
             triggerTimer += dt;
             if (triggerTimer > 1000) {
-                cleanup();
-                if (onQuit) onQuit();
+                triggerAction(onQuit);
             }
         } else {
             // indicator.background = "#00BFFF"; // Removed indicator
@@ -492,39 +508,25 @@ const showReadyPopup = (scene, onReady) => {
 };
 
 export const createIdleScreen = (scene, countdown, levelManager) => {
-    //preload video texture (paused initially)
-    const introVideoTexture = new BABYLON.VideoTexture("introVideo", "assets/animations/intro-sound.mp4", scene, true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, {
-        autoPlay: false,
-        loop: false,
-        autoUpdateTexture: true
-    });
-    
-    //ensure it doesn't play yet
-    if (introVideoTexture.video) {
-        introVideoTexture.video.pause();
-        introVideoTexture.video.currentTime = 0;
-    }
-
-    //preload outro video texture
-    const outroVideoTexture = new BABYLON.VideoTexture("outroVideo", "assets/animations/end_anim_f.mp4", scene, true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, {
-        autoPlay: false,
-        loop: false,
-        autoUpdateTexture: true
-    });
-
-    if (outroVideoTexture.video) {
-        outroVideoTexture.video.pause();
-        outroVideoTexture.video.currentTime = 0;
-        outroVideoTexture.video.setAttribute('playsinline', 'true');
-    }
+    //preload all video textures
+    const videoTextures = preloadVideoTextures(scene);
+    const introVideoTexture = videoTextures.intro;
+    const outroVideoTexture = videoTextures.outro;
+    const gameoverVideoTexture = videoTextures.gameover;
+    const victoryVideoTexture = videoTextures.victory;
 
     let onKeyDown;
 
     const gameState = {
         isPlaying: false,
         outroVideoTexture: outroVideoTexture,
+        gameoverVideoTexture: gameoverVideoTexture,
+        victoryVideoTexture: victoryVideoTexture,
         dispose: () => {
             if (outroVideoTexture) outroVideoTexture.dispose();
+            if (gameoverVideoTexture) gameoverVideoTexture.dispose();
+            if (victoryVideoTexture) victoryVideoTexture.dispose();
+            if (introVideoTexture) introVideoTexture.dispose();
             if (onKeyDown) window.removeEventListener("keydown", onKeyDown);
         }
     };
@@ -622,24 +624,7 @@ export const createIdleScreen = (scene, countdown, levelManager) => {
         videoElement.onended = () => {
             console.log("Video ended");
             
-            //transition
-            const transitionTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("TransitionUI", true, scene);
-            const blackScreen = new GUI.Rectangle();
-            blackScreen.width = "100%";
-            blackScreen.height = "100%";
-            blackScreen.background = "black";
-            blackScreen.thickness = 0;
-            blackScreen.alpha = 0;
-            transitionTexture.addControl(blackScreen);
-
-            const frameRate = 60;
-            const fadeAnim = new BABYLON.Animation("fade", "alpha", frameRate, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
-            fadeAnim.setKeys([
-                { frame: 0, value: 0 },
-                { frame: 45, value: 1 } //0.75s fade to black
-            ]);
-
-            scene.beginDirectAnimation(blackScreen, [fadeAnim], 0, 45, false, 1, () => {
+            createFadeTransition(scene, () => {
                 //cleanup video
                 introVideoTexture.dispose();
                 videoLayer.dispose();
@@ -648,17 +633,6 @@ export const createIdleScreen = (scene, countdown, levelManager) => {
                     countdown.startCountdown(() => {
                         levelManager.startFirstLevel();
                     });
-                });
-
-                //fade out black screen to reveal game
-                const fadeOutAnim = new BABYLON.Animation("fadeOut", "alpha", frameRate, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
-                fadeOutAnim.setKeys([
-                    { frame: 0, value: 1 },
-                    { frame: 60, value: 0 } // 1s fade out
-                ]);
-
-                scene.beginDirectAnimation(blackScreen, [fadeOutAnim], 0, 60, false, 1, () => {
-                    transitionTexture.dispose();
                 });
             });
         };
@@ -785,86 +759,4 @@ const createGifOverlay = (id, src, styles) => {
     });
     document.body.appendChild(img);
     return img;
-};
-
-export const playEndSequence = (scene, preloadedTexture, onComplete) => {
-    if (typeof preloadedTexture === 'function') {
-        onComplete = preloadedTexture;
-        preloadedTexture = null;
-    }
-
-    //create video layer
-    const videoLayer = new BABYLON.Layer("endVideoLayer", null, scene, false);
-    
-    let videoTexture;
-    if (preloadedTexture) {
-        videoTexture = preloadedTexture;
-    } else {
-        videoTexture = new BABYLON.VideoTexture("endVideo", "assets/animations/end_anim_f.mp4", scene, true, false, BABYLON.VideoTexture.TRILINEAR_SAMPLINGMODE, {
-            autoPlay: false,
-            loop: false,
-            autoUpdateTexture: true
-        });
-    }
-
-    videoLayer.texture = videoTexture;
-    const videoElement = videoTexture.video;
-    
-    //critical for mobile/some browsers
-    videoElement.setAttribute('playsinline', 'true');
-    videoElement.muted = false;
-
-    const cleanup = () => {
-        videoElement.onended = null;
-        
-        //fade out effect
-        const transitionTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("EndTransitionUI", true, scene);
-        const blackScreen = new GUI.Rectangle();
-        blackScreen.width = "100%";
-        blackScreen.height = "100%";
-        blackScreen.background = "black";
-        blackScreen.thickness = 0;
-        blackScreen.alpha = 0;
-        transitionTexture.addControl(blackScreen);
-
-        const frameRate = 60;
-        const fadeAnim = new BABYLON.Animation("fade", "alpha", frameRate, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
-        fadeAnim.setKeys([
-            { frame: 0, value: 0 },
-            { frame: 60, value: 1 } //1s fade to black
-        ]);
-
-        scene.beginDirectAnimation(blackScreen, [fadeAnim], 0, 60, false, 1, () => {
-            videoLayer.dispose();
-            videoTexture.dispose();
-            
-            if (onComplete) onComplete();
-
-            const fadeOutAnim = new BABYLON.Animation("fadeOut", "alpha", frameRate, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
-            fadeOutAnim.setKeys([
-                { frame: 0, value: 1 },
-                { frame: 60, value: 0 }
-            ]);
-
-            scene.beginDirectAnimation(blackScreen, [fadeOutAnim], 0, 60, false, 1, () => {
-                transitionTexture.dispose();
-            });
-        });
-    };
-
-    videoElement.onended = cleanup;
-
-    // Ensure video plays
-    const playPromise = videoElement.play();
-    if (playPromise !== undefined) {
-        playPromise.catch(e => {
-            console.warn("End video play failed:", e);
-            // Try muted if unmuted failed (autoplay policy)
-            videoElement.muted = true;
-            videoElement.play().catch(e2 => {
-                console.error("End video play failed again:", e2);
-                cleanup();
-            });
-        });
-    }
 };
