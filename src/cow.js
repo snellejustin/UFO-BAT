@@ -10,7 +10,7 @@ export const createCowManager = (scene) => {
             const result = await BABYLON.SceneLoader.ImportMeshAsync(
                 "",
                 "assets/blender-models/",
-                "cow.glb", 
+                "cowrig.glb", 
                 scene
             );
             cowModel = result.meshes[0];

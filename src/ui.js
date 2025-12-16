@@ -217,7 +217,7 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
     guiTexture.addControl(overlay);
 
     // WhatNow Image
-    const whatNowImage = new GUI.Image("whatNowImage", "assets/images/whatnow-background.png");
+    const whatNowImage = new GUI.Image("whatNowImage", "assets/images/background-restart-quit.jpeg");
     whatNowImage.width = "100%";
     whatNowImage.height = "100%";
     whatNowImage.stretch = GUI.Image.STRETCH_FILL;

@@ -16,7 +16,7 @@ const UFO_CONFIG = {
 
 const smoothStep = (t) => t * t * (3 - 2 * t);
 
-export const createUFO = async (scene, projectileManager) => {
+export const createUFO = async (scene, projectileManager, backgroundMusic) => {
 
     const ufoAssets = new Map();
     let currentActiveUfo = null;
@@ -40,14 +40,12 @@ export const createUFO = async (scene, projectileManager) => {
 
         const bossHeart = [];
         for (let i = 0; i < maxHealth; i++) {
-            const heart = new GUI.Ellipse();
-            heart.width = "40px";
-            heart.height = "40px";
-            heart.color = "white";
-            heart.thickness = 2;
-            heart.background = "red";
-            // heart.paddingLeft = "10px";
-            // heart.paddingRight = "10px";
+            const heart = new GUI.Image("heart" + i, "assets/images/boss-heart-active.png");
+            heart.width = "82px";
+            heart.height = "95px";
+            heart.stretch = GUI.Image.STRETCH_UNIFORM;
+            heart.paddingLeft = "5px";
+            heart.paddingRight = "5px";
             panel.addControl(heart);
             bossHeart.push(heart);
         }
@@ -55,14 +53,10 @@ export const createUFO = async (scene, projectileManager) => {
         return {
             update: (currentHealth) => {
                 bossHeart.forEach((heart, index) => {
-                    // Note: bossHeart are added 0, 1, 2. 
-                    // If health is 2, we want index 0 and 1 to be red, index 2 to be gray.
-                    // Actually, usually health bars deplete from right to left or top to bottom.
-                    // If we want to show "lives lost", turning the last one gray makes sense.
                     if (index < currentHealth) {
-                        heart.background = "red";
+                        heart.source = "assets/images/boss-heart-active.png";
                     } else {
-                        heart.background = "gray";
+                        heart.source = "assets/images/boss-heart-inactive.png";
                     }
                 });
             },
@@ -256,12 +250,11 @@ export const createUFO = async (scene, projectileManager) => {
 
                 const vel = projImpostor.getLinearVelocity();
 
-                if (vel && vel.y > -1 && bossHealth > 0) {
+                if (vel && vel.y > -1 && bossHealth > 0 && phase !== 'exiting') {
 
                     projectileManager.removeProjectile(projMesh);
 
                     bossHealth--;
-                    console.log(`BOSS HIT! Health remaining: ${bossHealth}`);
 
                     if (bossHealthUI) {
                         bossHealthUI.update(bossHealth);
@@ -280,6 +273,10 @@ export const createUFO = async (scene, projectileManager) => {
                     }
 
                     if (bossHealth <= 0) {
+                        if (backgroundMusic) {
+                            console.log("Stopping background music...");
+                            backgroundMusic.stop();
+                        }
                         if (bossHealthUI) {
                             bossHealthUI.dispose();
                             bossHealthUI = null;
@@ -362,6 +359,7 @@ export const createUFO = async (scene, projectileManager) => {
                 duration = config.timePerPoint;
             }
             else if (phase === 'exiting') {
+                // console.log("UFO exiting...");
                 startPos = path[path.length - 1] || UFO_CONFIG.startPosition;
                 targetPos = UFO_CONFIG.startPosition;
                 duration = config.exitDuration;

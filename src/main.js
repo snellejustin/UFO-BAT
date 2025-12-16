@@ -39,10 +39,15 @@ const initGame = async () => {
   const projectileManager = await createProjectileManager(scene);
   const countdown = createCountdown(scene);
 
+  //start music when countdown starts
+  countdown.onCountdownStart = () => {
+    backgroundMusic.play();
+  };
+
   //assets asynchroon laden
   const [spaceship, ufo] = await Promise.all([
     createRocketship(scene),
-    createUFO(scene, projectileManager)
+    createUFO(scene, projectileManager, backgroundMusic)
   ]);
 
   //powerups & health setup
@@ -63,7 +68,9 @@ const initGame = async () => {
       asteroidSystem.manager.isActive = false;
       levelManager.stop();
       ufo.stop();
-      backgroundMusic.stop();
+      if (backgroundMusic) {
+        backgroundMusic.stop();
+      }
       
       //stop shooting immediately
       rocketShooter.reset();
@@ -118,11 +125,7 @@ const initGame = async () => {
   engine.hideLoadingUI();
 
   uiState = createIdleScreen(scene, countdown, levelManager);
-  
-  //start music when countdown starts
-  countdown.onCountdownStart = () => {
-    backgroundMusic.play();
-  };
+
 
   const handleGameOver = async () => {
     if (uiState.isGameOverProcessing) return;
@@ -134,7 +137,9 @@ const initGame = async () => {
     asteroidSystem.manager.isActive = false;
     levelManager.stop();
     ufo.stop();
-    backgroundMusic.stop(); // Stop music immediately on death
+    if (backgroundMusic) {
+      backgroundMusic.stop(); // Stop music immediately on death
+    }
 
     //reset powerups zodat ze niet blijven zweven/werken
     healthBoost.reset();
@@ -179,7 +184,9 @@ const initGame = async () => {
           () => {
             uiState.isGameOverProcessing = false;
             //stop music on quit
-            backgroundMusic.stop();
+            if (backgroundMusic) {
+              backgroundMusic.stop();
+            }
 
             scene.onAfterPhysicsObservable.addOnce(() => {
               //reset alles naar beginstaat
