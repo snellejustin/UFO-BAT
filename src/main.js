@@ -45,6 +45,17 @@ const initGame = async () => {
     }
   );
 
+  const idleSound = await BABYLON.CreateSoundAsync(
+    "idleSound",
+    "assets/sounds/Soundtrack-idlestate.mp3",
+    {
+      loop: true,
+      autoplay: true,
+      volume: 0.5,
+      maxInstances: 1
+    }
+  );
+
   //managers aanmaken
   const asteroidSystem = createAsteroidManager(scene);
   const projectileManager = await createProjectileManager(scene);
@@ -110,7 +121,8 @@ const initGame = async () => {
               
               //recreate idle screen
               if (uiState && uiState.dispose) uiState.dispose();
-              uiState = createIdleScreen(scene, countdown, levelManager);
+              uiState = createIdleScreen(scene, countdown, levelManager, idleSound);
+              if (idleSound && !idleSound.isPlaying) idleSound.play();
           });
       });
   };
@@ -139,7 +151,7 @@ const initGame = async () => {
 
   engine.hideLoadingUI();
 
-  uiState = createIdleScreen(scene, countdown, levelManager);
+  uiState = createIdleScreen(scene, countdown, levelManager, idleSound);
 
 
   const handleGameOver = async () => {
@@ -186,6 +198,14 @@ const initGame = async () => {
               rocketShooter.reset();
               levelProgressBar.reset();
 
+              // Dispose old UI state and recreate to refresh video textures
+              if (uiState && uiState.dispose) uiState.dispose();
+              uiState = createIdleScreen(scene, countdown, levelManager, idleSound);
+              
+              // Immediately hide the idle screen and prepare for game
+              uiState.startImmediate();
+              uiState.isPlaying = false; // Pause updates during countdown
+
               //start direct de countdown
               countdown.startCountdown(() => {
                 uiState.isPlaying = true;
@@ -227,8 +247,11 @@ const initGame = async () => {
               shield.reset();
               rocketShooter.reset();
               levelProgressBar.reset();
-              uiState = createIdleScreen(scene, countdown, levelManager);
+              
+              if (uiState && uiState.dispose) uiState.dispose();
+              uiState = createIdleScreen(scene, countdown, levelManager, idleSound);
               uiState.isPlaying = false;
+              if (idleSound && !idleSound.isPlaying) idleSound.play();
             });
           }
         );

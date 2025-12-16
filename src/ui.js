@@ -519,7 +519,7 @@ const showReadyPopup = (scene, onReady) => {
     popupImage.onPointerUpObservable.add(finish);
 };
 
-export const createIdleScreen = (scene, countdown, levelManager) => {
+export const createIdleScreen = (scene, countdown, levelManager, idleSound) => {
     //preload all video textures
     const videoTextures = preloadVideoTextures(scene);
     const introVideoTexture = videoTextures.intro;
@@ -540,6 +540,22 @@ export const createIdleScreen = (scene, countdown, levelManager) => {
             if (victoryVideoTexture) victoryVideoTexture.dispose();
             if (introVideoTexture) introVideoTexture.dispose();
             if (onKeyDown) window.removeEventListener("keydown", onKeyDown);
+            if (guiTexture) guiTexture.dispose();
+        },
+        startImmediate: () => {
+             if (gameState.isPlaying) return;
+             gameState.isPlaying = true;
+             
+             if (idleSound) idleSound.stop();
+
+             if (motionObserver) {
+                 scene.onBeforeRenderObservable.remove(motionObserver);
+             }
+             guiTexture.dispose();
+             const gif = document.getElementById("idleGif");
+             if (gif) gif.remove();
+             
+             if (onKeyDown) window.removeEventListener("keydown", onKeyDown);
         }
     };
 
@@ -616,6 +632,8 @@ export const createIdleScreen = (scene, countdown, levelManager) => {
     const playIntroAndStart = () => {
         if (gameState.isPlaying) return;
         gameState.isPlaying = true;
+
+        if (idleSound) idleSound.stop();
 
         if (onKeyDown) window.removeEventListener("keydown", onKeyDown);
 
@@ -731,6 +749,8 @@ export const createIdleScreen = (scene, countdown, levelManager) => {
                 BABYLON.Engine.audioEngine.audioContext.resume();
             }
             
+            if (idleSound) idleSound.stop();
+
             gameState.isPlaying = true;
             
             //cleanup idle screen

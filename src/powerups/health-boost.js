@@ -157,9 +157,12 @@ export const createHealthBoost = (scene, rocketship, healthManager, camera, audi
         hitbox.isVisible = false;
 
         let spawnX = 0;
+        let attempts = 0;
+        const maxAttempts = 10;
         do {
             spawnX = (Math.random() - 0.5) * HEALTH_BOOST_CONFIG.spawnWidthRange;
-        } while (!isSafeSpawnPosition(spawnX, asteroidSystem));
+            attempts++;
+        } while (!isSafeSpawnPosition(spawnX, asteroidSystem) && attempts < maxAttempts);
 
         visualMesh.position.set(spawnX, HEALTH_BOOST_CONFIG.spawnHeight, 0);
         hitbox.position.copyFrom(visualMesh.position);

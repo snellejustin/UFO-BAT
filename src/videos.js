@@ -58,6 +58,7 @@ export const playEndSequence = (scene, outroTexture, victoryTexture, onComplete)
     //critical for mobile/some browsers
     videoElement.setAttribute('playsinline', 'true');
     videoElement.muted = false;
+    videoElement.currentTime = 0;
 
     const playVictory = () => {
         videoElement.onended = null;
@@ -69,6 +70,7 @@ export const playEndSequence = (scene, outroTexture, victoryTexture, onComplete)
              const victoryElement = victoryTexture.video;
              victoryElement.setAttribute('playsinline', 'true');
              victoryElement.muted = false;
+             victoryElement.currentTime = 0;
              
              victoryElement.onended = cleanup;
              
@@ -146,8 +148,13 @@ export const playGameOverSequence = (scene, preloadedTexture, onComplete) => {
     //critical for mobile/some browsers
     videoElement.setAttribute('playsinline', 'true');
     videoElement.muted = false;
+    
+    // Force reset state
+    videoElement.pause();
+    videoElement.currentTime = 0;
 
     const cleanup = () => {
+        if (typeof safetyTimeout !== 'undefined') clearTimeout(safetyTimeout);
         videoElement.onended = null;
         
         createFadeTransition(scene, () => {
@@ -161,11 +168,18 @@ export const playGameOverSequence = (scene, preloadedTexture, onComplete) => {
 
     videoElement.onended = cleanup;
 
+    // Safety timeout in case onended doesn't fire
+    const safetyTimeout = setTimeout(() => {
+        console.warn("Video timeout reached, forcing cleanup");
+        cleanup();
+    }, (videoElement.duration || 10) * 1000 + 1000); // Duration + 1s buffer, default 10s
+
     // Ensure video plays
     const playPromise = videoElement.play();
     if (playPromise !== undefined) {
         playPromise.catch(e => {
             console.warn("Game over video play failed:", e);
+            clearTimeout(safetyTimeout);
             // Try muted if unmuted failed (autoplay policy)
             videoElement.muted = true;
             videoElement.play().catch(e2 => {
@@ -173,5 +187,7 @@ export const playGameOverSequence = (scene, preloadedTexture, onComplete) => {
                 cleanup();
             });
         });
+    } else {
+        // If play() returns undefined (older browsers), we still keep the timeout
     }
 };
