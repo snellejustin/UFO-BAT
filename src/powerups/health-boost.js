@@ -28,18 +28,39 @@ const HEALTH_BOOST_CONFIG = {
     },
 };
 
-export const createHealthBoost = (scene, rocketship, healthManager, camera) => {
+export const createHealthBoost = (scene, rocketship, healthManager, camera, audioEngine) => {
     let powerup = null;
     let healthBoostModel = null;
     let isModelLoaded = false;
     let updateObserver = null;
     let collisionCallback = null;
     let registeredImpostorId = null;
+    let pickupSound = null;
 
     const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("healthBoostUI", true, scene);
 
-    const handleCollision = () => {
+    const loadSounds = async () => {
+        try {
+            pickupSound = await BABYLON.CreateSoundAsync("pickupSound", "assets/sounds/power-up_pickup.mp3", {
+                loop: false,
+                autoplay: false,
+                volume: 0.3
+            });
+        } catch (e) {
+            console.error("Failed to load health boost pickup sound:", e);
+        }
+    };
+    loadSounds();
+
+    const handleCollision = async () => {
         if (powerup) {
+            if (pickupSound) {
+                if (audioEngine && audioEngine.audioContext?.state === 'suspended') {
+                    audioEngine.audioContext.resume();
+                }
+                pickupSound.play();
+            }
+
             const currentHealth = healthManager.getHealth();
             const newHealth = Math.min(HEALTH_BOOST_CONFIG.maxHealth, currentHealth + HEALTH_BOOST_CONFIG.healAmount);
             healthManager.setHealth(newHealth);
@@ -93,6 +114,8 @@ export const createHealthBoost = (scene, rocketship, healthManager, camera) => {
     const isSafeSpawnPosition = (x, asteroidSystem) => {
         if (!asteroidSystem?.manager?.active) return true;
         const minSafeDistance = 4;
+        const minSafeDistanceX = 3;
+
         for (const asteroid of asteroidSystem.manager.active) {
             const asteroidX = asteroid.position.x;
             const asteroidY = asteroid.position.y;
@@ -101,6 +124,8 @@ export const createHealthBoost = (scene, rocketship, healthManager, camera) => {
                 const distance = Math.abs(asteroidX - x);
                 if (distance < minSafeDistance) return false;
             }
+
+            if (Math.abs(asteroidX - x) < minSafeDistanceX) return false;
         }
         return true;
     };

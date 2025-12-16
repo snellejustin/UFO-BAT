@@ -79,7 +79,7 @@ class AsteroidManager {
         try {
             // Load collision sound
             this.collisionSound = await BABYLON.CreateSoundAsync("asteroidImpact", "assets/sounds/ast-ast.mp3", {
-                volume: 0.4,
+                volume: 1,
                 maxInstances: 5
             });
 

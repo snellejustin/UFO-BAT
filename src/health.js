@@ -15,7 +15,7 @@ export const createHealthManager = async (scene, rocketship, shieldManager) => {
 
   //sound effect for asteroid collision
   const impactSound = await BABYLON.CreateSoundAsync("impact", "assets/sounds/ast-roc.mp3", {
-    volume: 0.2,
+    volume: 1,
     maxInstances: 3
   });
 

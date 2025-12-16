@@ -33,7 +33,7 @@ const SHIELD_CONFIG = {
     }
 };
 
-export const createShield = (scene, rocketship, camera) => {
+export const createShield = (scene, rocketship, camera, audioEngine) => {
     let powerup = null;
     let shieldModel = null;
     let isModelLoaded = false;
@@ -45,11 +45,32 @@ export const createShield = (scene, rocketship, camera) => {
     let updateObserver = null;
     let collisionCallback = null;
     let registeredImpostorId = null;
+    let pickupSound = null;
 
     const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("shieldUI", true, scene);
 
-    const handleCollision = () => {
+    const loadSounds = async () => {
+        try {
+            pickupSound = await BABYLON.CreateSoundAsync("pickupSound", "assets/sounds/power-up_pickup.mp3", {
+                loop: false,
+                autoplay: false,
+                volume: 0.3
+            });
+        } catch (e) {
+            console.error("Failed to load shield pickup sound:", e);
+        }
+    };
+    loadSounds();
+
+    const handleCollision = async () => {
         if (powerup) {
+            if (pickupSound) {
+                if (audioEngine && audioEngine.audioContext?.state === 'suspended') {
+                    audioEngine.audioContext.resume();
+                }
+                pickupSound.play();
+            }
+
             activateShield();
             showShieldPopup();
 
@@ -96,10 +117,11 @@ export const createShield = (scene, rocketship, camera) => {
     };
 
     loadShieldModel();
-
     const isSafeSpawnPosition = (x, asteroidSystem) => {
         if (!asteroidSystem?.manager?.active) return true;
         const minSafeDistance = 4;
+        const minSafeDistanceX = 3;
+
         for (const asteroid of asteroidSystem.manager.active) {
             const asteroidX = asteroid.position.x;
             const asteroidY = asteroid.position.y;
@@ -108,6 +130,8 @@ export const createShield = (scene, rocketship, camera) => {
                 const distance = Math.abs(asteroidX - x);
                 if (distance < minSafeDistance) return false;
             }
+
+            if (Math.abs(asteroidX - x) < minSafeDistanceX) return false;
         }
         return true;
     };

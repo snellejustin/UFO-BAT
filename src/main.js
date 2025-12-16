@@ -34,6 +34,17 @@ const initGame = async () => {
     }
   );
 
+  const windSound = await BABYLON.CreateSoundAsync(
+    "windSound",
+    "assets/sounds/background_wind-sound.mp3",
+    {
+      loop: true,
+      autoplay: false,
+      volume: 2.6,
+      maxInstances: 1
+    }
+  );
+
   //managers aanmaken
   const asteroidSystem = createAsteroidManager(scene);
   const projectileManager = await createProjectileManager(scene);
@@ -42,6 +53,7 @@ const initGame = async () => {
   //start music when countdown starts
   countdown.onCountdownStart = () => {
     backgroundMusic.play();
+    windSound.play();
   };
 
   //assets asynchroon laden
@@ -51,10 +63,10 @@ const initGame = async () => {
   ]);
 
   //powerups & health setup
-  const shield = createShield(scene, spaceship, scene.activeCamera);
+  const shield = createShield(scene, spaceship, scene.activeCamera, audioEngine);
   const healthManager = await createHealthManager(scene, spaceship, shield);
-  const healthBoost = createHealthBoost(scene, spaceship, healthManager, scene.activeCamera);
-  const rocketShooter = createRocketShooter(scene, spaceship, scene.activeCamera, projectileManager);
+  const healthBoost = createHealthBoost(scene, spaceship, healthManager, scene.activeCamera, audioEngine);
+  const rocketShooter = createRocketShooter(scene, spaceship, scene.activeCamera, projectileManager, audioEngine);
 
   //UI elementen
   const levelProgressBar = createLevelProgressBar(scene, 5);
@@ -70,6 +82,9 @@ const initGame = async () => {
       ufo.stop();
       if (backgroundMusic) {
         backgroundMusic.stop();
+      }
+      if (windSound) {
+        windSound.stop();
       }
       
       //stop shooting immediately
@@ -140,6 +155,9 @@ const initGame = async () => {
     if (backgroundMusic) {
       backgroundMusic.stop(); // Stop music immediately on death
     }
+    if (windSound) {
+      windSound.stop();
+    }
 
     //reset powerups zodat ze niet blijven zweven/werken
     healthBoost.reset();
@@ -178,6 +196,9 @@ const initGame = async () => {
               if (!backgroundMusic.isPlaying) {
                 backgroundMusic.play();
               }
+              if (!windSound.isPlaying) {
+                windSound.play();
+              }
             });
           },
           //QUIT CALLBACK (Terug naar hoofdmenu)
@@ -186,6 +207,9 @@ const initGame = async () => {
             //stop music on quit
             if (backgroundMusic) {
               backgroundMusic.stop();
+            }
+            if (windSound) {
+              windSound.stop();
             }
 
             scene.onAfterPhysicsObservable.addOnce(() => {

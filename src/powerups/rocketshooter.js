@@ -12,7 +12,7 @@ const CONFIG = {
     colMask: 1,         
 };
 
-export const createRocketShooter = (scene, rocketship, camera, projectileManager) => {
+export const createRocketShooter = (scene, rocketship, camera, projectileManager, audioEngine) => {
 
     let activePowerup = null;
     let isShooting = false;
@@ -23,6 +23,20 @@ export const createRocketShooter = (scene, rocketship, camera, projectileManager
 
     let uiTexture = null;
     let updateObserver = null;
+    let pickupSound = null;
+
+    const loadSounds = async () => {
+        try {
+            pickupSound = await BABYLON.CreateSoundAsync("pickupSound", "assets/sounds/power-up_pickup.mp3", {
+                loop: false,
+                autoplay: false,
+                volume: 0.3
+            });
+        } catch (e) {
+            console.error("Failed to load rocket shooter pickup sound:", e);
+        }
+    };
+    loadSounds();
 
     const setupGUI = () => {
         if (!uiTexture) uiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("RocketShooterUI", true, scene);
@@ -128,8 +142,15 @@ export const createRocketShooter = (scene, rocketship, camera, projectileManager
         }
     };
 
-    const collectPowerup = (onCollected) => {
+    const collectPowerup = async (onCollected) => {
         if (!activePowerup) return;
+
+        if (pickupSound) {
+            if (audioEngine && audioEngine.audioContext?.state === 'suspended') {
+                audioEngine.audioContext.resume();
+            }
+            pickupSound.play();
+        }
 
         const collisionMesh = rocketship.metadata?.collisionMesh || rocketship;
         const powerupToRemove = activePowerup;
