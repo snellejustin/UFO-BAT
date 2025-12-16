@@ -25,11 +25,11 @@ const initGame = async () => {
 
   const backgroundMusic = await BABYLON.CreateSoundAsync(
     "backgroundMusic",
-    "assets/sounds/Galaxy.mp3",
+    "assets/sounds/background.mp3",
     {
       loop: true,
       autoplay: false,
-      volume: 0.05,
+      volume: 0.7,
       maxInstances: 1
     }
   );
@@ -40,7 +40,7 @@ const initGame = async () => {
     {
       loop: true,
       autoplay: false,
-      volume: 2.6,
+      volume: 3,
       maxInstances: 1
     }
   );
@@ -51,7 +51,7 @@ const initGame = async () => {
     {
       loop: true,
       autoplay: true,
-      volume: 0.5,
+      volume: 0.3,
       maxInstances: 1
     }
   );

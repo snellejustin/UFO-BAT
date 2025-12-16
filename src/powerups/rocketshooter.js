@@ -30,7 +30,7 @@ export const createRocketShooter = (scene, rocketship, camera, projectileManager
             pickupSound = await BABYLON.CreateSoundAsync("pickupSound", "assets/sounds/power-up_pickup.mp3", {
                 loop: false,
                 autoplay: false,
-                volume: 0.3
+                volume: 0.7
             });
         } catch (e) {
             console.error("Failed to load rocket shooter pickup sound:", e);

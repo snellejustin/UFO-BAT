@@ -44,7 +44,7 @@ export const createHealthBoost = (scene, rocketship, healthManager, camera, audi
             pickupSound = await BABYLON.CreateSoundAsync("pickupSound", "assets/sounds/power-up_pickup.mp3", {
                 loop: false,
                 autoplay: false,
-                volume: 0.3
+                volume: 0.7
             });
         } catch (e) {
             console.error("Failed to load health boost pickup sound:", e);

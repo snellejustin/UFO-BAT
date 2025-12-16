@@ -261,9 +261,9 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
     const barContainer = new GUI.Rectangle();
     barContainer.width = "800px";
     barContainer.height = "50px";
-    barContainer.background = "#8B8B83";
+    barContainer.background = "#00000035";
     barContainer.thickness = 0;
-    barContainer.cornerRadius = 25;
+    barContainer.cornerRadius = 6;
     barContainer.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
     barContainer.top = "-50px";
     guiTexture.addControl(barContainer);
@@ -295,24 +295,6 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
     centerLine.cornerRadius = 10;
     barContainer.addControl(centerLine);
 
-    // Labels for the bar
-    const leftLabel = new GUI.TextBlock();
-    leftLabel.text = "RESTART";
-    leftLabel.color = "#00ff00";
-    leftLabel.fontSize = 20;
-    leftLabel.fontFamily = "GameFont, Arial, sans-serif";
-    leftLabel.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-    leftLabel.left = "10px";
-    barContainer.addControl(leftLabel);
-
-    const rightLabel = new GUI.TextBlock();
-    rightLabel.text = "STOP";
-    rightLabel.color = "#ff0000";
-    rightLabel.fontSize = 20;
-    rightLabel.fontFamily = "GameFont, Arial, sans-serif";
-    rightLabel.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-    rightLabel.left = "-10px";
-    barContainer.addControl(rightLabel);
 
     // Logic Loop
     const MAX_LEAN = 3; // Degrees

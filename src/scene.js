@@ -15,7 +15,7 @@ const createSkyboxLayer = (scene, name, size, opacity, texturePath) => {
     skyboxMaterial.reflectionTexture = new BABYLON.CubeTexture(
         texturePath,
         scene,
-        ["px.png", "py.png", "pz.png", "nx.png", "ny.png", "nz.png"]
+        ["_px.png", "_py.png", "_pz.png", "_nx.png", "_ny.png", "_nz.png"]
     );
     skyboxMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
     // skyboxMaterial.reflectionTexture.level = 2.3; //voor glow
@@ -41,8 +41,8 @@ export const createScene = (engine) => {
     const gl = new BABYLON.GlowLayer("glow", scene);
     gl.intensity = 0.6;
 
-    const skyboxOuter = createSkyboxLayer(scene, "skyBoxOuter",2000, 1.0, "textures/");
-    const skyboxInner = createSkyboxLayer(scene, "skyBoxInner", 1000, 0.4, "textures/");
+    const skyboxOuter = createSkyboxLayer(scene, "skyBoxOuter", 1000, 1.0, "textures/space");
+    const skyboxInner = createSkyboxLayer(scene, "skyBoxInner", 500, 0.4, "textures/space");
 
     //offset
     skyboxInner.rotation.x = Math.PI / 4;

@@ -384,7 +384,10 @@ export const createUFO = async (scene, projectileManager, backgroundMusic) => {
                     currentPointIndex = 1;
                 }
                 else if (phase === 'flying') {
-                    if (shotsFired < config.totalShots && currentPointIndex <= config.pathPoints - 2) {
+                    // Boss shoots always (infinite ammo, no dead zones), regular UFOs respect limits
+                    const shouldShoot = isBoss || (shotsFired < config.totalShots && currentPointIndex <= config.pathPoints - 2);
+
+                    if (shouldShoot) {
                         shootProjectiles(currentActiveUfo.root.position.clone(), config.projectileSpeed);
                         shotsFired++;
                     }

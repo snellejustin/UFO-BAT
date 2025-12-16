@@ -27,9 +27,8 @@ const SHIELD_CONFIG = {
         duration: 1000
     },
     timer: {
-        fontSize: 24,
-        color: '#00BFFF',
-        position: { top: '120px', right: '40px' }
+        size: "80px",
+        position: { top: '20px', right: '20px' }
     }
 };
 
@@ -40,7 +39,8 @@ export const createShield = (scene, rocketship, camera, audioEngine) => {
     let isShieldActive = false;
 
     let shieldTimerObserver = null;
-    let timerElement = null;
+    let timerContainer = null;
+    let maskContainer = null;
 
     let updateObserver = null;
     let collisionCallback = null;
@@ -54,7 +54,7 @@ export const createShield = (scene, rocketship, camera, audioEngine) => {
             pickupSound = await BABYLON.CreateSoundAsync("pickupSound", "assets/sounds/power-up_pickup.mp3", {
                 loop: false,
                 autoplay: false,
-                volume: 0.3
+                volume: 0.7
             });
         } catch (e) {
             console.error("Failed to load shield pickup sound:", e);
@@ -207,6 +207,7 @@ export const createShield = (scene, rocketship, camera, audioEngine) => {
         }
         isShieldActive = true;
         let timeRemaining = SHIELD_CONFIG.duration / 1000;
+        const totalDuration = SHIELD_CONFIG.duration / 1000;
 
         createShieldTimerUI();
 
@@ -216,9 +217,17 @@ export const createShield = (scene, rocketship, camera, audioEngine) => {
             const dt = scene.getEngine().getDeltaTime() / 1000;
             timeRemaining -= dt;
 
-            if (timerElement) {
-                timerElement.text = `Shield ${Math.ceil(timeRemaining)}s`;
+            if (maskContainer) {
+                // Calculate percentage (0 to 1)
+                // Add a small visual buffer (10%) so the bar doesn't look empty 
+                // while the shield is still active (due to image padding/transparency)
+                const rawPercentage = Math.max(0, timeRemaining / totalDuration);
+                const visualBuffer = 0.1; 
+                const percentage = rawPercentage * (1 - visualBuffer) + visualBuffer;
+                
+                maskContainer.height = `${percentage * 100}%`;
             }
+            
             if (timeRemaining <= 0) {
                 deactivateShield();
             }
@@ -237,34 +246,105 @@ export const createShield = (scene, rocketship, camera, audioEngine) => {
         }
 
         //verwijder UI
-        if (timerElement) {
-            guiTexture.removeControl(timerElement);
-            timerElement.dispose();
-            timerElement = null;
+        if (timerContainer) {
+            guiTexture.removeControl(timerContainer);
+            timerContainer.dispose();
+            timerContainer = null;
+            maskContainer = null;
         }
     };
 
     const createShieldTimerUI = () => {
         //oude opruimen voor de zekerheid
-        if (timerElement) {
-            guiTexture.removeControl(timerElement);
-            timerElement.dispose();
+        if (timerContainer) {
+            guiTexture.removeControl(timerContainer);
+            timerContainer.dispose();
         }
 
-        timerElement = new GUI.TextBlock();
-        timerElement.color = SHIELD_CONFIG.timer.color;
-        timerElement.fontSize = SHIELD_CONFIG.timer.fontSize;
-        timerElement.fontWeight = "bold";
+        const startSize = 200;
+        const targetSize = parseInt(SHIELD_CONFIG.timer.size); // 80
 
-        timerElement.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-        timerElement.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
-        timerElement.top = SHIELD_CONFIG.timer.position.top;
-        timerElement.left = `-${SHIELD_CONFIG.timer.position.right}`;
+        // Main container - Start at Center
+        timerContainer = new GUI.Container("shieldTimerContainer");
+        timerContainer.width = `${startSize}px`;
+        timerContainer.height = `${startSize}px`;
+        timerContainer.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+        timerContainer.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+        timerContainer.top = "0px";
+        timerContainer.left = "0px";
+        guiTexture.addControl(timerContainer);
 
-        //startwaarde
-        timerElement.text = `Shield ${SHIELD_CONFIG.duration / 1000}s`;
+        // Background (faded/empty version)
+        const bgImage = new GUI.Image("shieldBg", "assets/images/shield.png");
+        bgImage.width = "100%";
+        bgImage.height = "100%";
+        bgImage.alpha = 0.3; 
+        timerContainer.addControl(bgImage);
 
-        guiTexture.addControl(timerElement);
+        // Mask Container for the "Active" part
+        maskContainer = new GUI.Container("shieldMask");
+        maskContainer.width = "100%";
+        maskContainer.height = "100%"; 
+        maskContainer.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+        maskContainer.clipChildren = true;
+        timerContainer.addControl(maskContainer);
+
+        // Foreground (Active) Shield
+        const fgImage = new GUI.Image("shieldFg", "assets/images/shield.png");
+        fgImage.width = `${startSize}px`; 
+        fgImage.height = `${startSize}px`;
+        fgImage.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+        maskContainer.addControl(fgImage);
+
+        // Animation to move to top-right
+        const animateMove = () => {
+            if (!timerContainer) return;
+
+            const engine = scene.getEngine();
+            const width = engine.getRenderWidth();
+            const height = engine.getRenderHeight();
+            
+            // Calculate target position (Top-Right) relative to Center
+            // Center (0,0). Top-Right is (+width/2, -height/2)
+            // We want 20px margin.
+            const margin = 20;
+            const targetLeft = (width / 2) - margin - (targetSize / 2);
+            const targetTop = -(height / 2) + margin + (targetSize / 2);
+
+            const duration = 800;
+            const fps = 60;
+            const totalFrames = (duration / 1000) * fps;
+            
+            let frame = 0;
+            const observer = scene.onBeforeRenderObservable.add(() => {
+                if (!timerContainer) {
+                    scene.onBeforeRenderObservable.remove(observer);
+                    return;
+                }
+
+                frame++;
+                const progress = Math.min(frame / totalFrames, 1);
+                const ease = progress * progress * (3 - 2 * progress); // Smoothstep
+
+                const currentSize = startSize + (targetSize - startSize) * ease;
+                const currentLeft = 0 + (targetLeft - 0) * ease;
+                const currentTop = 0 + (targetTop - 0) * ease;
+
+                timerContainer.width = `${currentSize}px`;
+                timerContainer.height = `${currentSize}px`;
+                timerContainer.left = `${currentLeft}px`;
+                timerContainer.top = `${currentTop}px`;
+                
+                // Update inner image size to match container (prevent squashing/clipping issues)
+                fgImage.width = `${currentSize}px`;
+                fgImage.height = `${currentSize}px`;
+
+                if (progress >= 1) {
+                    scene.onBeforeRenderObservable.remove(observer);
+                }
+            });
+        };
+        setTimeout(animateMove, 400);
     };
 
     const showShieldPopup = () => {
@@ -308,10 +388,11 @@ export const createShield = (scene, rocketship, camera, audioEngine) => {
             shieldTimerObserver = null;
         }
 
-        if (timerElement) {
-            guiTexture.removeControl(timerElement);
-            timerElement.dispose();
-            timerElement = null;
+        if (timerContainer) {
+            guiTexture.removeControl(timerContainer);
+            timerContainer.dispose();
+            timerContainer = null;
+            maskContainer = null;
         }
 
         deactivateShield();

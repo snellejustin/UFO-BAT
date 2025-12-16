@@ -48,6 +48,7 @@ export const playEndSequence = (scene, outroTexture, victoryTexture, onComplete)
         currentVideoTexture = new BABYLON.VideoTexture("endVideo", "assets/animations/end_anim_f.mp4", scene, true, false, BABYLON.VideoTexture.TRILINEAR_SAMPLINGMODE, {
             autoPlay: false,
             loop: false,
+            volume: 0.4,
             autoUpdateTexture: true
         });
     }
@@ -71,6 +72,7 @@ export const playEndSequence = (scene, outroTexture, victoryTexture, onComplete)
              victoryElement.setAttribute('playsinline', 'true');
              victoryElement.muted = false;
              victoryElement.currentTime = 0;
+             victoryElement.volume = 0.4;
              
              victoryElement.onended = cleanup;
              
@@ -138,7 +140,8 @@ export const playGameOverSequence = (scene, preloadedTexture, onComplete) => {
         videoTexture = new BABYLON.VideoTexture("gameoverVideo", "assets/animations/gameover_anim.mp4", scene, true, false, BABYLON.VideoTexture.TRILINEAR_SAMPLINGMODE, {
             autoPlay: false,
             loop: false,
-            autoUpdateTexture: true
+            autoUpdateTexture: true,
+            volume: 0.4
         });
     }
 
