@@ -1,7 +1,7 @@
 import { connectToWitMotion, onWitmotionDisconnect, sensorData } from './witmotion.js';
 import * as GUI from '@babylonjs/gui';
 import * as BABYLON from '@babylonjs/core';
-import { preloadVideoTextures } from './videos.js';
+import { preloadVideoTextures, fitVideoToScreen } from './videos.js';
 import { createFadeTransition } from './effects.js';
 
 export const createHealthBarUI = (scene) => {
@@ -209,10 +209,12 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
 
     //whatNow Image
     const whatNowImage = new GUI.Image("whatNowImage", "assets/images/background-restart-quit.jpeg");
-    whatNowImage.width = "100%";
-    whatNowImage.height = "100%";
-    whatNowImage.stretch = GUI.Image.STRETCH_FILL;
+    // whatNowImage.width = "100%"; // Handled by fitImageToScreen
+    // whatNowImage.height = "100%"; // Handled by fitImageToScreen
+    // whatNowImage.stretch = GUI.Image.STRETCH_FILL; // Handled by fitImageToScreen
     guiTexture.addControl(whatNowImage);
+    
+    const stopFitting = fitImageToScreen(whatNowImage, scene);
 
     //restart Image (Left)
     const restartImage = new GUI.Image("restartImage", "assets/images/restart.png");
@@ -384,6 +386,7 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
     });
 
     const cleanup = () => {
+        stopFitting();
         if (guiTexture) guiTexture.dispose();
         if (observer) scene.onBeforeRenderObservable.remove(observer);
         if (opnieuwGif) opnieuwGif.remove();
@@ -489,6 +492,43 @@ const showReadyPopup = (scene, onReady) => {
     popupImage.onPointerUpObservable.add(finish);
 };
 
+// Helper to fit GUI image to screen (cover mode)
+const fitImageToScreen = (image, scene) => {
+    const updateScale = () => {
+        const screenWidth = scene.getEngine().getRenderWidth();
+        const screenHeight = scene.getEngine().getRenderHeight();
+        
+        const domImage = image.domImage;
+        if (!domImage || !domImage.width || !domImage.height) return;
+        
+        const imageWidth = domImage.width;
+        const imageHeight = domImage.height;
+        
+        const imageRatio = imageWidth / imageHeight;
+        const screenRatio = screenWidth / screenHeight;
+        
+        if (screenRatio > imageRatio) {
+            image.width = screenWidth + "px";
+            image.height = (screenWidth / imageRatio) + "px";
+        } else {
+            image.height = screenHeight + "px";
+            image.width = (screenHeight * imageRatio) + "px";
+        }
+    };
+    
+    if (image.isLoaded) {
+        updateScale();
+    } else {
+        image.onImageLoadedObservable.addOnce(updateScale);
+    }
+    
+    const observer = scene.onBeforeRenderObservable.add(updateScale);
+    
+    return () => {
+        scene.onBeforeRenderObservable.remove(observer);
+    };
+};
+
 export const createIdleScreen = (scene, countdown, levelManager, idleSound) => {
     //preload all video textures
     const videoTextures = preloadVideoTextures(scene);
@@ -498,6 +538,7 @@ export const createIdleScreen = (scene, countdown, levelManager, idleSound) => {
     const victoryVideoTexture = videoTextures.victory;
 
     let onKeyDown;
+    let stopFitting = () => {};
 
     const gameState = {
         isPlaying: false,
@@ -505,6 +546,7 @@ export const createIdleScreen = (scene, countdown, levelManager, idleSound) => {
         gameoverVideoTexture: gameoverVideoTexture,
         victoryVideoTexture: victoryVideoTexture,
         dispose: () => {
+            stopFitting();
             if (outroVideoTexture) outroVideoTexture.dispose();
             if (gameoverVideoTexture) gameoverVideoTexture.dispose();
             if (victoryVideoTexture) victoryVideoTexture.dispose();
@@ -516,6 +558,7 @@ export const createIdleScreen = (scene, countdown, levelManager, idleSound) => {
              if (gameState.isPlaying) return;
              gameState.isPlaying = true;
              
+             stopFitting();
              if (idleSound) idleSound.stop();
 
              if (motionObserver) {
@@ -533,15 +576,17 @@ export const createIdleScreen = (scene, countdown, levelManager, idleSound) => {
 
     //full screen idle image
     const idleImage = new GUI.Image("idleImage", "assets/images/idlescreen.png");
-    idleImage.width = "100%";
-    idleImage.height = "100%";
-    idleImage.stretch = GUI.Image.STRETCH_FILL; 
+    // idleImage.width = "100%"; // Handled by fitImageToScreen
+    // idleImage.height = "100%"; // Handled by fitImageToScreen
+    // idleImage.stretch = GUI.Image.STRETCH_FILL; // Handled by fitImageToScreen
     
     //make it clickable
     idleImage.isPointerBlocker = true;
     idleImage.hoverCursor = "pointer";
 
     guiTexture.addControl(idleImage);
+    
+    stopFitting = fitImageToScreen(idleImage, scene);
 
     const idleGif = createGifOverlay("idleGif", "assets/gifs/idlescreen.gif", {
         bottom: "50px",
@@ -619,10 +664,13 @@ export const createIdleScreen = (scene, countdown, levelManager, idleSound) => {
         const videoLayer = new BABYLON.Layer("introLayer", null, scene, false);
         videoLayer.texture = introVideoTexture;
         
+        const stopFitting = fitVideoToScreen(videoLayer, scene);
+
         const videoElement = introVideoTexture.video;
         
         videoElement.onended = () => {
             console.log("Video ended");
+            stopFitting();
             
             createFadeTransition(scene, () => {
                 //cleanup video
@@ -639,6 +687,7 @@ export const createIdleScreen = (scene, countdown, levelManager, idleSound) => {
         
         videoElement.onerror = (e) => {
             console.error("Video error:", e);
+            stopFitting();
             introVideoTexture.dispose();
             videoLayer.dispose();
             countdown.startCountdown(() => {
@@ -649,6 +698,7 @@ export const createIdleScreen = (scene, countdown, levelManager, idleSound) => {
         //ensure it plays
         videoElement.play().catch(e => {
             console.warn("Video play failed (autoplay policy?):", e);
+            stopFitting();
             introVideoTexture.dispose();
             videoLayer.dispose();
             countdown.startCountdown(() => {
@@ -713,8 +763,10 @@ export const createIdleScreen = (scene, countdown, levelManager, idleSound) => {
     });
 
     //s cheatcode om te starten zonder intro video
+    //b cheatcode om direct naar level 5 te gaan
     onKeyDown = (e) => {
-        if (e.key.toLowerCase() === 's' && !gameState.isPlaying) {
+        const key = e.key.toLowerCase();
+        if ((key === 's' || key === 'b') && !gameState.isPlaying) {
             if (BABYLON.Engine.audioEngine && BABYLON.Engine.audioEngine.audioContext) {
                 BABYLON.Engine.audioEngine.audioContext.resume();
             }
@@ -737,7 +789,11 @@ export const createIdleScreen = (scene, countdown, levelManager, idleSound) => {
             
             //start game directly
             countdown.startCountdown(() => {
-                levelManager.startFirstLevel();
+                if (key === 'b') {
+                    levelManager.startLevel(4); // Level 5 is index 4
+                } else {
+                    levelManager.startFirstLevel();
+                }
             });
             
             window.removeEventListener("keydown", onKeyDown);

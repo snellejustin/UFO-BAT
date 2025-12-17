@@ -539,6 +539,7 @@ export const createLevelManager = (scene, asteroidSystem, ufo, healthBoost, shie
 
     return {
         startFirstLevel,
+        startLevel: (levelIndex) => startWave(levelIndex),
         reset,
         stop,
         cleanup,

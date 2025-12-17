@@ -158,7 +158,7 @@ export const createHealthBoost = (scene, rocketship, healthManager, camera, audi
 
         let spawnX = 0;
         let attempts = 0;
-        const maxAttempts = 10;
+        const maxAttempts = 15;
         do {
             spawnX = (Math.random() - 0.5) * HEALTH_BOOST_CONFIG.spawnWidthRange;
             attempts++;

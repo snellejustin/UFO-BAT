@@ -161,7 +161,7 @@ export const createShield = (scene, rocketship, camera, audioEngine) => {
 
         let spawnX = 0;
         let attempts = 0;
-        const maxAttempts = 10;
+        const maxAttempts = 15;
         do {
             spawnX = (Math.random() - 0.5) * SHIELD_CONFIG.spawnWidthRange;
             attempts++;
