@@ -2,6 +2,10 @@
 
 A 3D space shooter game built with Babylon.js for a bachelor thesis project at Devine (2025-2026). Control a rocketship, dodge asteroids, battle UFOs, and collect powerups across multiple challenging levels to save your cow!
 
+## Github URL
+
+https://github.com/snellejustin/UFO-BAT/
+
 ## 🎮 About the Game
 
 UFO-BAT (UFO Abduction) is an interactive space combat game where you pilot a rocketship through waves of asteroids while battling alien UFOs. The game features:
