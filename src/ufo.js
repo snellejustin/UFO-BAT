@@ -22,6 +22,18 @@ export const createUFO = async (scene, projectileManager, backgroundMusic) => {
     let currentActiveUfo = null;
     let isFlying = false;
     let flyingObserver = null;
+    let alienLaughSound = null;
+
+    // Load alien laugh sound
+    try {
+        alienLaughSound = await BABYLON.CreateSoundAsync("alienLaugh", "assets/sounds/alien-laugh.mp3", {
+            loop: false,
+            autoplay: false,
+            volume: 2.0
+        });
+    } catch (e) {
+        console.error("Failed to load alien laugh sound:", e);
+    }
 
     // Variabelen voor Boss state
     let bossHealth = 3;
@@ -154,6 +166,10 @@ export const createUFO = async (scene, projectileManager, backgroundMusic) => {
             flyingObserver = null;
         }
 
+        if (alienLaughSound && alienLaughSound.isPlaying) {
+            alienLaughSound.stop();
+        }
+
         if (currentActiveUfo && currentActiveUfo._collisionObserver) {
             scene.onBeforeRenderObservable.remove(currentActiveUfo._collisionObserver);
             currentActiveUfo._collisionObserver = null;
@@ -175,6 +191,10 @@ export const createUFO = async (scene, projectileManager, backgroundMusic) => {
 
     const reset = () => {
         stop(); // Gebruik stop om eerst alles netjes te killen
+
+        if (alienLaughSound) {
+            alienLaughSound.stop();
+        }
 
         // Reset modellen
         ufoAssets.forEach((asset) => {
@@ -253,6 +273,7 @@ export const createUFO = async (scene, projectileManager, backgroundMusic) => {
                 if (vel && vel.y > -1 && bossHealth > 0 && phase !== 'exiting') {
 
                     projectileManager.removeProjectile(projMesh);
+                    projectileManager.playImpactSound();
 
                     bossHealth--;
 
@@ -352,6 +373,18 @@ export const createUFO = async (scene, projectileManager, backgroundMusic) => {
                 startPos = UFO_CONFIG.startPosition;
                 targetPos = path[0];
                 duration = config.enterDuration;
+
+                // Play laugh sound once with delay
+                if (timeAtPoint === 0 && alienLaughSound) {
+                    setTimeout(() => {
+                        if (isFlying && phase === 'entering') {
+                            if (scene.getEngine().getAudioContext()?.state === 'suspended') {
+                                scene.getEngine().getAudioContext().resume();
+                            }
+                            alienLaughSound.play();
+                        }
+                    }, 1000);
+                }
             }
             else if (phase === 'flying') {
                 startPos = path[currentPointIndex - 1];

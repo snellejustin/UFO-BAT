@@ -544,7 +544,7 @@ export const createIdleScreen = (scene, countdown, levelManager, idleSound) => {
     const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("IdleUI", true, scene);
 
     //full screen idle image
-    const idleImage = new GUI.Image("idleImage", "assets/images/IdleState.png");
+    const idleImage = new GUI.Image("idleImage", "assets/images/idlescreen.png");
     idleImage.width = "100%";
     idleImage.height = "100%";
     idleImage.stretch = GUI.Image.STRETCH_FILL; 
@@ -699,7 +699,7 @@ export const createIdleScreen = (scene, countdown, levelManager, idleSound) => {
         }
 
         //decay energy
-        energy *= 0.96;
+        energy *= 0.98;
 
         //clamp energy
         energy = Math.max(0, Math.min(energy, MAX_ENERGY));

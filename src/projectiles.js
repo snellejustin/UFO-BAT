@@ -14,6 +14,12 @@ export const createProjectileManager = async (scene) => {
         maxInstances: 10
     });
 
+    // Load impact sound
+    const impactSound = await BABYLON.CreateSoundAsync("impact", "assets/sounds/proj-roc-ufo.mp3", {
+        volume: 1.5,
+        maxInstances: 5
+    });
+
     //queue om kogels veilig te verwijderen NA de physics stap
     const removalQueue = [];
 
@@ -151,6 +157,9 @@ export const createProjectileManager = async (scene) => {
     const shootProjectile = (position, speed = -5, velocityDirection = null, isPlayerShot = false) => {
         // Play sound
         if (shootSound) {
+            if (scene.getEngine().getAudioContext()?.state === 'suspended') {
+                scene.getEngine().getAudioContext().resume();
+            }
             shootSound.play();
         }
 
@@ -200,6 +209,15 @@ export const createProjectileManager = async (scene) => {
         }
     };
 
+    const playImpactSound = () => {
+        if (impactSound) {
+            if (scene.getEngine().getAudioContext()?.state === 'suspended') {
+                scene.getEngine().getAudioContext().resume();
+            }
+            impactSound.play();
+        }
+    };
+
     const update = () => {
         for (let i = 0; i < pool.length; i++) {
             const proj = pool[i];
@@ -244,6 +262,7 @@ export const createProjectileManager = async (scene) => {
 
     return {
         shootProjectile,
+        playImpactSound,
         setProjectileConfig,
         update,
         reset,

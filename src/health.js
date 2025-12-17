@@ -150,6 +150,7 @@ export const createHealthManager = async (scene, rocketship, shieldManager) => {
 
         //verwijder kogel (zet isHit op true in manager)
         projectileManager.removeProjectile(projMesh);
+        projectileManager.playImpactSound();
         //doe schade (20hp per schot)
         takeDamage(20, camera);
       }
