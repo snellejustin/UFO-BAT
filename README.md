@@ -53,6 +53,8 @@ npm install
 
 This will install:
 - `@babylonjs/core` - Core Babylon.js engine
+- `@babylonjs/GUI` - GUI elements
+- `@babylonjs/loaders` - Loader
 - `@babylonjs/inspector` - Debugging tools for Babylon.js
 - `@babylonjs/procedural-textures` - Procedural texture generation
 - `cannon-es` - Physics engine
