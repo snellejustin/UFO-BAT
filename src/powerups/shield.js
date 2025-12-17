@@ -218,9 +218,9 @@ export const createShield = (scene, rocketship, camera, audioEngine) => {
             timeRemaining -= dt;
 
             if (maskContainer) {
-                // Calculate percentage (0 to 1)
-                // Add a small visual buffer (10%) so the bar doesn't look empty 
-                // while the shield is still active (due to image padding/transparency)
+                //calculate percentage (0 to 1)
+                //add a small visual buffer (10%) so the bar doesn't look empty 
+                //while the shield is still active (due to image padding/transparency)
                 const rawPercentage = Math.max(0, timeRemaining / totalDuration);
                 const visualBuffer = 0.1; 
                 const percentage = rawPercentage * (1 - visualBuffer) + visualBuffer;
@@ -264,7 +264,7 @@ export const createShield = (scene, rocketship, camera, audioEngine) => {
         const startSize = 200;
         const targetSize = parseInt(SHIELD_CONFIG.timer.size); // 80
 
-        // Main container - Start at Center
+        //start at center
         timerContainer = new GUI.Container("shieldTimerContainer");
         timerContainer.width = `${startSize}px`;
         timerContainer.height = `${startSize}px`;
@@ -274,14 +274,14 @@ export const createShield = (scene, rocketship, camera, audioEngine) => {
         timerContainer.left = "0px";
         guiTexture.addControl(timerContainer);
 
-        // Background (faded/empty version)
+        //(faded/empty version)
         const bgImage = new GUI.Image("shieldBg", "assets/images/shield.png");
         bgImage.width = "100%";
         bgImage.height = "100%";
         bgImage.alpha = 0.3; 
         timerContainer.addControl(bgImage);
 
-        // Mask Container for the "Active" part
+        //mask Container for the "Active" part
         maskContainer = new GUI.Container("shieldMask");
         maskContainer.width = "100%";
         maskContainer.height = "100%"; 
@@ -289,14 +289,14 @@ export const createShield = (scene, rocketship, camera, audioEngine) => {
         maskContainer.clipChildren = true;
         timerContainer.addControl(maskContainer);
 
-        // Foreground (Active) Shield
+        //foreground (Active) Shield
         const fgImage = new GUI.Image("shieldFg", "assets/images/shield.png");
         fgImage.width = `${startSize}px`; 
         fgImage.height = `${startSize}px`;
         fgImage.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
         maskContainer.addControl(fgImage);
 
-        // Animation to move to top-right
+        //animation to move to top-right
         const animateMove = () => {
             if (!timerContainer) return;
 
@@ -304,9 +304,9 @@ export const createShield = (scene, rocketship, camera, audioEngine) => {
             const width = engine.getRenderWidth();
             const height = engine.getRenderHeight();
             
-            // Calculate target position (Top-Right) relative to Center
-            // Center (0,0). Top-Right is (+width/2, -height/2)
-            // We want 20px margin.
+            //calculate target position (Top-Right) relative to Center
+            //center (0,0). Top-Right is (+width/2, -height/2)
+            //we want 20px margin.
             const margin = 20;
             const targetLeft = (width / 2) - margin - (targetSize / 2);
             const targetTop = -(height / 2) + margin + (targetSize / 2);
@@ -335,7 +335,7 @@ export const createShield = (scene, rocketship, camera, audioEngine) => {
                 timerContainer.left = `${currentLeft}px`;
                 timerContainer.top = `${currentTop}px`;
                 
-                // Update inner image size to match container (prevent squashing/clipping issues)
+                //update inner image size to match container (prevent squashing/clipping issues)
                 fgImage.width = `${currentSize}px`;
                 fgImage.height = `${currentSize}px`;
 

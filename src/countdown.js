@@ -64,7 +64,7 @@ export const createCountdown = (scene) => {
                 animatePop();
             } else {
                 clearInterval(timerId);
-                countText.isVisible = false; // Hide UI
+                countText.isVisible = false; //hide UI
 
                 if (onComplete) {
                     onComplete();

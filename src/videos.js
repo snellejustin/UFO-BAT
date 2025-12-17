@@ -32,7 +32,6 @@ export const preloadVideoTextures = (scene) => {
 };
 
 export const playEndSequence = (scene, outroTexture, victoryTexture, onComplete) => {
-    // Handle optional arguments if victoryTexture is missing (backward compatibility or if not provided)
     if (typeof victoryTexture === 'function') {
         onComplete = victoryTexture;
         victoryTexture = null;
@@ -64,7 +63,6 @@ export const playEndSequence = (scene, outroTexture, victoryTexture, onComplete)
     const playVictory = () => {
         videoElement.onended = null;
 
-        // If we have a victory texture, play it
         if (victoryTexture) {
              // Switch texture
              videoLayer.texture = victoryTexture;
@@ -88,7 +86,6 @@ export const playEndSequence = (scene, outroTexture, victoryTexture, onComplete)
                  });
              }
         } else {
-            // If no victory texture, just cleanup
             cleanup();
         }
     };
@@ -101,7 +98,7 @@ export const playEndSequence = (scene, outroTexture, victoryTexture, onComplete)
         createFadeTransition(scene, () => {
             videoLayer.dispose();
             
-            if (!outroTexture) currentVideoTexture.dispose(); // Only dispose if we created it locally
+            if (!outroTexture) currentVideoTexture.dispose(); //only dispose if we created it locally
             
             if (onComplete) onComplete();
         });
@@ -109,16 +106,16 @@ export const playEndSequence = (scene, outroTexture, victoryTexture, onComplete)
 
     videoElement.onended = playVictory;
 
-    // Ensure video plays
+    //ensure video plays
     const playPromise = videoElement.play();
     if (playPromise !== undefined) {
         playPromise.catch(e => {
             console.warn("End video play failed:", e);
-            // Try muted if unmuted failed (autoplay policy)
+            //try muted if unmuted failed (autoplay policy)
             videoElement.muted = true;
             videoElement.play().catch(e2 => {
                 console.error("End video play failed again:", e2);
-                playVictory(); // Skip to next or cleanup
+                playVictory(); //skip to next or cleanup
             });
         });
     }
@@ -163,7 +160,7 @@ export const playGameOverSequence = (scene, preloadedTexture, onComplete) => {
         createFadeTransition(scene, () => {
             videoLayer.dispose();
             
-            if (!preloadedTexture) videoTexture.dispose(); // Only dispose if we created it locally
+            if (!preloadedTexture) videoTexture.dispose(); //only dispose if we created it locally
             
             if (onComplete) onComplete();
         });
@@ -171,19 +168,19 @@ export const playGameOverSequence = (scene, preloadedTexture, onComplete) => {
 
     videoElement.onended = cleanup;
 
-    // Safety timeout in case onended doesn't fire
+    //safety timeout in case onended doesn't fire
     const safetyTimeout = setTimeout(() => {
         console.warn("Video timeout reached, forcing cleanup");
         cleanup();
-    }, (videoElement.duration || 10) * 1000 + 1000); // Duration + 1s buffer, default 10s
+    }, (videoElement.duration || 10) * 1000 + 1000); //duration + 1s buffer, default 10s
 
-    // Ensure video plays
+    //ensure video plays
     const playPromise = videoElement.play();
     if (playPromise !== undefined) {
         playPromise.catch(e => {
             console.warn("Game over video play failed:", e);
             clearTimeout(safetyTimeout);
-            // Try muted if unmuted failed (autoplay policy)
+            //try muted if unmuted failed (autoplay policy)
             videoElement.muted = true;
             videoElement.play().catch(e2 => {
                 console.error("Game over video play failed again:", e2);
@@ -191,6 +188,5 @@ export const playGameOverSequence = (scene, preloadedTexture, onComplete) => {
             });
         });
     } else {
-        // If play() returns undefined (older browsers), we still keep the timeout
     }
 };

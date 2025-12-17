@@ -71,7 +71,7 @@ export const createRocketship = async (scene) => {
             const currentVel = spaceship.physicsImpostor.getLinearVelocity();
             
             if (active) {
-                // Create Shield Sphere
+                //create Shield Sphere
                 const shieldMesh = BABYLON.MeshBuilder.CreateSphere("shieldSphere", { diameter: 2 }, scene);
                 shieldMesh.scaling.y = 1.5;
                 shieldMesh.position.copyFrom(spaceship.metadata.collisionMesh.position);
@@ -84,7 +84,7 @@ export const createRocketship = async (scene) => {
                 material.alpha = 0.4;
                 shieldMesh.material = material;
 
-                // Physics
+                //physics
                 shieldMesh.physicsImpostor = new BABYLON.PhysicsImpostor(
                     shieldMesh,
                     BABYLON.PhysicsImpostor.MeshImpostor,
@@ -92,7 +92,7 @@ export const createRocketship = async (scene) => {
                     scene
                 );
                 
-                // Apply physics config
+                //apply physics config
                 const body = shieldMesh.physicsImpostor.physicsBody;
                 if (body) {
                     body.linearDamping = 0.5;
@@ -103,7 +103,7 @@ export const createRocketship = async (scene) => {
                     body.updateMassProperties();
                 }
 
-                // Switch
+                //switch
                 spaceship.physicsImpostor.dispose(); // Dispose old impostor
                 spaceship.physicsImpostor = shieldMesh.physicsImpostor;
                 spaceship.metadata.collisionMesh = shieldMesh;
@@ -111,11 +111,11 @@ export const createRocketship = async (scene) => {
                 if (currentVel) shieldMesh.physicsImpostor.setLinearVelocity(currentVel);
 
             } else {
-                // Revert
+                //revert
                 const shieldMesh = spaceship.metadata.collisionMesh;
                 const originalMesh = spaceship.metadata.originalCollisionMesh;
                 
-                // Restore original physics
+                //restore original physics
                  originalMesh.physicsImpostor = new BABYLON.PhysicsImpostor(
                     originalMesh,
                     BABYLON.PhysicsImpostor.MeshImpostor,
@@ -133,11 +133,11 @@ export const createRocketship = async (scene) => {
                     body.updateMassProperties();
                 }
 
-                // Switch back
+                //switch back
                 spaceship.physicsImpostor = originalMesh.physicsImpostor;
                 spaceship.metadata.collisionMesh = originalMesh;
                 
-                // Sync position just in case
+                //sync position just in case
                 originalMesh.position.copyFrom(shieldMesh.position);
                 if (shieldMesh.metadata && shieldMesh.metadata.yOffset) {
                     originalMesh.position.y -= shieldMesh.metadata.yOffset;
@@ -145,7 +145,7 @@ export const createRocketship = async (scene) => {
                 
                 if (currentVel) originalMesh.physicsImpostor.setLinearVelocity(currentVel);
 
-                // Cleanup shield
+                //cleanup shield
                 shieldMesh.dispose();
             }
         };

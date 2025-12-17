@@ -21,7 +21,7 @@ export const createFadeTransition = (scene, onMidPoint, onComplete) => {
     scene.beginDirectAnimation(blackScreen, [fadeAnim], 0, 45, false, 1, () => {
         if (onMidPoint) onMidPoint();
 
-        // Re-create texture to ensure it is on top of any new UI created in onMidPoint
+        //re-create texture to ensure it is on top of any new UI created in onMidPoint
         transitionTexture.dispose();
         transitionTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("TransitionUI", true, scene);
         

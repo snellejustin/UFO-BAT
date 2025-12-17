@@ -9,7 +9,7 @@ export const createHealthBarUI = (scene) => {
 
     const rudyImage = new GUI.Image("rudyImage", "assets/images/UIexportRudy.png");
     rudyImage.width = "17%";
-    rudyImage.height = "25%"; // Set sufficient height for aspect ratio
+    rudyImage.height = "25%";
     rudyImage.stretch = GUI.Image.STRETCH_UNIFORM;
     rudyImage.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
     rudyImage.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
@@ -207,23 +207,14 @@ export const createLevelProgressBar = (scene, totalLevels = 5) => {
 export const createGameOverScreen = (scene, onRestart, onQuit) => {
     const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("GameOverUI", true, scene);
 
-    //dark background overlay
-    const overlay = new GUI.Rectangle();
-    overlay.width = 1;
-    overlay.height = 1;
-    overlay.background = "black";
-    overlay.alpha = 0.8;
-    overlay.thickness = 0;
-    guiTexture.addControl(overlay);
-
-    // WhatNow Image
+    //whatNow Image
     const whatNowImage = new GUI.Image("whatNowImage", "assets/images/background-restart-quit.jpeg");
     whatNowImage.width = "100%";
     whatNowImage.height = "100%";
     whatNowImage.stretch = GUI.Image.STRETCH_FILL;
     guiTexture.addControl(whatNowImage);
 
-    // Restart Image (Left)
+    //restart Image (Left)
     const restartImage = new GUI.Image("restartImage", "assets/images/restart.png");
     restartImage.width = "370px";
     restartImage.height = "370px";
@@ -232,7 +223,7 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
     restartImage.left = "200px";
     guiTexture.addControl(restartImage);
 
-    // Quit Image (Right)
+    //quit Image (Right)
     const quitImage = new GUI.Image("quitImage", "assets/images/quit.png");
     quitImage.width = "370px";
     quitImage.height = "370px";
@@ -241,7 +232,7 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
     quitImage.left = "-200px";
     guiTexture.addControl(quitImage);
 
-    // Opnieuw Gif (Under Restart)
+    //opnieuw Gif
     const opnieuwGif = createGifOverlay("opnieuwGif", "assets/gifs/Opnieuw.gif", {
         left: "100px",
         top: "calc(50% + 120px)",
@@ -249,7 +240,7 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
         height: "auto"
     });
 
-    // Stoppen Gif (Under Quit)
+    //stoppen Gif
     const stoppenGif = createGifOverlay("stoppenGif", "assets/gifs/Stoppen.gif", {
         right: "100px",
         top: "calc(50% + 120px)",
@@ -257,7 +248,7 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
         height: "auto"
     });
 
-    // Lean Bar Container
+    //lean Bar Container
     const barContainer = new GUI.Rectangle();
     barContainer.width = "800px";
     barContainer.height = "50px";
@@ -268,7 +259,7 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
     barContainer.top = "-50px";
     guiTexture.addControl(barContainer);
 
-    // Left Fill (Green)
+    //left Fill (Green)
     const leftFill = new GUI.Rectangle();
     leftFill.width = "0px";
     leftFill.height = "100%";
@@ -277,7 +268,7 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
     leftFill.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
     barContainer.addControl(leftFill);
 
-    // Right Fill (Red)
+    //right Fill (Red)
     const rightFill = new GUI.Rectangle();
     rightFill.width = "0px";
     rightFill.height = "100%";
@@ -286,7 +277,7 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
     rightFill.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
     barContainer.addControl(rightFill);
 
-    // Center Line (Dark Purple)
+    //center Line
     const centerLine = new GUI.Rectangle();
     centerLine.width = "20px";
     centerLine.height = "120%";
@@ -296,14 +287,14 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
     barContainer.addControl(centerLine);
 
 
-    // Logic Loop
+    //logic Loop
     const MAX_LEAN = 3; // Degrees
     const THRESHOLD = 3; // Degrees to trigger
     let triggerTimer = 0;
-    let autoQuitTimer = 15000; // 15 seconds
+    let autoQuitTimer = 15000; 
     let currentLerpedRoll = 0;
 
-    // Timer Text
+    //timer Text
     const timerText = new GUI.TextBlock();
     timerText.text = "15";
     timerText.color = "#3C2C00";
@@ -313,7 +304,7 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
     timerText.top = "0px";
     guiTexture.addControl(timerText);
 
-    // What Now Text
+    //what now text
     const whatNowText = new GUI.TextBlock();
     whatNowText.text = "wat wil je nu doen?";
     whatNowText.color = "#3C2C00";
@@ -344,10 +335,10 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
         const dt = scene.getEngine().getDeltaTime();
         const targetRoll = sensorData.roll || 0;
 
-        // Lerp
+        //lerp
         currentLerpedRoll = BABYLON.Scalar.Lerp(currentLerpedRoll, targetRoll, 0.1);
 
-        // Auto Quit Timer
+        //auto quit timer
         autoQuitTimer -= dt;
         timerText.text = Math.ceil(autoQuitTimer / 1000).toString();
 
@@ -356,41 +347,38 @@ export const createGameOverScreen = (scene, onRestart, onQuit) => {
             return;
         }
         
-        // Update Bar
+        //update bar
         const clampedRoll = Math.max(-MAX_LEAN, Math.min(MAX_LEAN, currentLerpedRoll));
         const halfWidth = 400; // Half of 800px container
 
         if (clampedRoll < 0) {
-            // Leaning Left -> Green Fill
+            //leaning left -> green fill
             const fillWidth = (Math.abs(clampedRoll) / MAX_LEAN) * halfWidth;
             leftFill.width = `${fillWidth}px`;
             leftFill.left = `-${fillWidth / 2}px`;
             rightFill.width = "0px";
         } else {
-            // Leaning Right -> Red Fill
+            //leaning right -> red fill
             const fillWidth = (clampedRoll / MAX_LEAN) * halfWidth;
             rightFill.width = `${fillWidth}px`;
             rightFill.left = `${fillWidth / 2}px`;
             leftFill.width = "0px";
         }
 
-        // Color feedback (Logic triggers)
+        //color feedback (Logic triggers)
         if (currentLerpedRoll < -THRESHOLD) {
-            // indicator.background = "#00ff00"; // Removed indicator
         
             triggerTimer += dt;
-            if (triggerTimer > 1000) { // Hold for 1 second
+            if (triggerTimer > 1000) { //hold for 1 second
                 triggerAction(onRestart);
             }
         } else if (currentLerpedRoll > THRESHOLD) {
-            // indicator.background = "#ff0000"; // Removed indicator
 
             triggerTimer += dt;
             if (triggerTimer > 1000) {
                 triggerAction(onQuit);
             }
         } else {
-            // indicator.background = "#00BFFF"; // Removed indicator
             triggerTimer = 0;
         }
     });
@@ -570,7 +558,7 @@ export const createIdleScreen = (scene, countdown, levelManager, idleSound) => {
     whiteOverlay.background = "white";
     whiteOverlay.alpha = 0;
     whiteOverlay.thickness = 0;
-    whiteOverlay.isHitTestVisible = false; // Let clicks pass through
+    whiteOverlay.isHitTestVisible = false; //let clicks pass through
     whiteOverlay.zIndex = 5; 
     guiTexture.addControl(whiteOverlay);
 
@@ -717,7 +705,7 @@ export const createIdleScreen = (scene, countdown, levelManager, idleSound) => {
 
     //click logic for game start
     idleImage.onPointerUpObservable.add(() => {
-        // Resume audio context on user interaction
+        //resume audio context on user interaction
         if (BABYLON.Engine.audioEngine && BABYLON.Engine.audioEngine.audioContext) {
             BABYLON.Engine.audioEngine.audioContext.resume();
         }

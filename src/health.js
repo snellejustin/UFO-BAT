@@ -92,14 +92,14 @@ export const createHealthManager = async (scene, rocketship, shieldManager) => {
     shakeCamera(camera);
     showDamagePopup(damage);
 
-    // Check game over
+    //check game over
     if (health <= 0 && onGameOverCallback) {
       isDead = true;
       onGameOverCallback();
     }
   };
 
-  // Botsing met Asteroïden
+  //botsing met asteroïden
   const setupCollisionListener = (asteroidManager, camera) => {
     const onCollide = (collider, collidedAgainst) => {
       const asteroidMesh = collidedAgainst.object;
@@ -130,7 +130,7 @@ export const createHealthManager = async (scene, rocketship, shieldManager) => {
           const hitbox = asteroid.metadata?.hitbox;
           if (!hitbox || !hitbox.physicsImpostor) return;
 
-          // Check if registered against the CURRENT impostor
+          //check if registered against the CURRENT impostor
           if (hitbox.registeredImpostorId !== currentImpostor.uniqueId) {
             currentImpostor.registerOnPhysicsCollide(hitbox.physicsImpostor, onCollide);
             hitbox.registeredImpostorId = currentImpostor.uniqueId;
@@ -151,7 +151,7 @@ export const createHealthManager = async (scene, rocketship, shieldManager) => {
         //verwijder kogel (zet isHit op true in manager)
         projectileManager.removeProjectile(projMesh);
         projectileManager.playImpactSound();
-        //doe schade (20hp per schot)
+        //doe schade
         takeDamage(20, camera);
       }
     };

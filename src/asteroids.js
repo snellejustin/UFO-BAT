@@ -6,7 +6,7 @@ const TMP_ZERO = new BABYLON.Vector3(0, 0, 0);
 const TMP_VELOCITY = new BABYLON.Vector3(0, 0, 0);
 
 const DEFAULT_ASTEROID_CONFIG = {
-    spawnRatePerSecond: 1,
+    spawnRatePerSecond: 0,
     spawnWidth: 16,
     spawnHeight: 15,
     deathZone: -5,
@@ -77,7 +77,7 @@ class AsteroidManager {
 
     async loadAsteroidModel() {
         try {
-            // Load collision sound
+            //load collision sound
             this.collisionSound = await BABYLON.CreateSoundAsync("asteroidImpact", "assets/sounds/ast-ast.mp3", {
                 volume: 1,
                 maxInstances: 5
@@ -132,12 +132,12 @@ class AsteroidManager {
             body.angularDamping = this.angDamp;
         }
 
-        // Register collision with other asteroids
+        //register collision with other asteroids
         if (this.collisionSound) {
             this.allHitboxes.forEach(otherHitbox => {
                 if (otherHitbox.physicsImpostor) {
                     hitbox.physicsImpostor.registerOnPhysicsCollide(otherHitbox.physicsImpostor, () => {
-                        // Only play sound if both asteroids are active/visible
+                        //only play sound if both asteroids are active/visible
                         if (hitbox.isEnabled() && otherHitbox.isEnabled()) {
                             this.collisionSound.play();
                         }
@@ -189,7 +189,7 @@ class AsteroidManager {
                 0
             );
             hitbox.position.copyFrom(asteroid.position);
-            hitbox.rotation.setAll(0); // Reset rotatie van de bol
+            hitbox.rotation.setAll(0); //reset rotatie van de bol
 
             //forceer update zodat de physics engine de nieuwe positie direct kent
             hitbox.physicsImpostor.forceUpdate();

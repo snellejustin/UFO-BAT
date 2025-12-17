@@ -168,7 +168,7 @@ const initGame = async () => {
     levelManager.stop();
     ufo.stop();
     if (backgroundMusic) {
-      backgroundMusic.stop(); // Stop music immediately on death
+      backgroundMusic.stop(); //stop music immediately on death
     }
     if (windSound) {
       windSound.stop();
@@ -178,9 +178,9 @@ const initGame = async () => {
     healthBoost.reset();
     shield.reset();
     rocketShooter.reset();
-    projectileManager.reset(); // Clear projectiles
+    projectileManager.reset(); //clear projectiles
 
-    // Play Game Over Video first
+    //play Game Over Video first
     playGameOverSequence(scene, uiState ? uiState.gameoverVideoTexture : null, async () => {
         //toon Game Over scherm
         await createGameOverScreen(
@@ -190,7 +190,7 @@ const initGame = async () => {
             uiState.isGameOverProcessing = false;
             //voer resets uit NA de physics stap om crashes te voorkomen
             scene.onAfterPhysicsObservable.addOnce(() => {
-              // First reset all game systems
+              //first reset all game systems
               asteroidSystem.reset();
               projectileManager.reset();
               levelManager.reset();
@@ -200,17 +200,17 @@ const initGame = async () => {
               rocketShooter.reset();
               levelProgressBar.reset();
 
-              // Then reset health and unpause
+              //reset health and unpause
               healthManager.setHealth(100);
               healthManager.setPaused(false);
 
-              // Dispose old UI state and recreate to refresh video textures
+              //dispose old UI state and recreate to refresh video textures
               if (uiState && uiState.dispose) uiState.dispose();
               uiState = createIdleScreen(scene, countdown, levelManager, idleSound);
               
-              // Immediately hide the idle screen and prepare for game
+              //immediately hide the idle screen and prepare for game
               uiState.startImmediate();
-              uiState.isPlaying = false; // Pause updates during countdown
+              uiState.isPlaying = false; //pause updates during countdown
 
               //start direct de countdown
               countdown.startCountdown(() => {

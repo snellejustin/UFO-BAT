@@ -4,17 +4,23 @@ import * as BABYLON from '@babylonjs/core';
 const MASK_INACTIVE = 0;      //botst met niets
 const MASK_ACTIVE = -1;       //botst met alles (default)
 
+const DEFAULT_PROJECTILE_CONFIG = {
+    size: 0.2,
+    color: { r: 0.063, g: 0.992, b: 0.847 },
+    glowIntensity: 1.0
+};
+
 export const createProjectileManager = async (scene) => {
     const poolSize = 30;
     const pool = [];
 
-    // Load shoot sound
+    //load shoot sound
     const shootSound = await BABYLON.CreateSoundAsync("shoot", "assets/sounds/projectile.mp3", {
-        volume: 0.3,
+        volume: 0.7,
         maxInstances: 10
     });
 
-    // Load impact sound
+    //load impact sound
     const impactSound = await BABYLON.CreateSoundAsync("impact", "assets/sounds/proj-roc-ufo.mp3", {
         volume: 1.5,
         maxInstances: 5
@@ -23,16 +29,9 @@ export const createProjectileManager = async (scene) => {
     //queue om kogels veilig te verwijderen NA de physics stap
     const removalQueue = [];
 
-    // Centrale plek voor de standaard instellingen
-    const DEFAULT_PROJECTILE_CONFIG = {
-        size: 0.2,
-        color: { r: 0.063, g: 0.992, b: 0.847 },
-        glowIntensity: 1.0
-    };
-
     let ufoMaterial = null;
 
-    // Initialiseer met de defaults
+    //initialiseer met de defaults
     let currentConfig = { ...DEFAULT_PROJECTILE_CONFIG };
 
     const rocketMaterial = new BABYLON.StandardMaterial('rocketProjectileMat', scene);
@@ -69,7 +68,7 @@ export const createProjectileManager = async (scene) => {
         mesh.isVisible = false;
         mesh.setEnabled(false);
 
-        //vlag om dubbele hits te voorkomen
+        //flag om dubbele hits te voorkomen
         mesh.isHit = false;
 
         mesh.physicsImpostor = new BABYLON.PhysicsImpostor(
@@ -155,7 +154,7 @@ export const createProjectileManager = async (scene) => {
     });
 
     const shootProjectile = (position, speed = -5, velocityDirection = null, isPlayerShot = false) => {
-        // Play sound
+        //play sound
         if (shootSound) {
             if (scene.getEngine().getAudioContext()?.state === 'suspended') {
                 scene.getEngine().getAudioContext().resume();
@@ -245,17 +244,17 @@ export const createProjectileManager = async (scene) => {
     };
 
     const reset = () => {
-        // Recycle all active projectiles
+        //recycle all active projectiles
         pool.forEach(proj => {
             if (proj.active) {
                 recycleProjectile(proj);
             }
         });
         
-        // Clear removal queue
+        //clear removal queue
         removalQueue.length = 0;
         
-        // Reset to default config
+        //reset to default config
         currentConfig = { size: 0.2, color: { r: 0.063, g: 0.992, b: 0.847 }, glowIntensity: 1.0 };
         updateUfoMaterial();
     };

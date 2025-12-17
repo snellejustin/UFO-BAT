@@ -79,12 +79,12 @@ export const createRocketShooter = (scene, rocketship, camera, projectileManager
     const spawnPowerup = async (onCollected) => {
         if (activePowerup) return;
 
-        // Create invisible hitbox for physics
+        //create invisible hitbox for physics
         const mesh = BABYLON.MeshBuilder.CreateSphere('rocketShooterHitbox', { diameter: 0.8 }, scene);
         mesh.position.set(0, CONFIG.spawnHeight, 0);
         mesh.isVisible = false;
 
-        // Load GLB model
+        //load GLB model
         try {
             const result = await BABYLON.SceneLoader.ImportMeshAsync("", "assets/blender-models/", "shooterpowerup.glb", scene);
             const model = result.meshes[0];
@@ -92,7 +92,7 @@ export const createRocketShooter = (scene, rocketship, camera, projectileManager
             model.position.setAll(0);
             model.scaling.setAll(0.7);
 
-            // Add rotation animation
+            //add rotation animation
             const rotationObserver = scene.onBeforeRenderObservable.add(() => {
                 if (model && !model.isDisposed()) {
                     model.rotation.y += 0.02;
@@ -102,7 +102,7 @@ export const createRocketShooter = (scene, rocketship, camera, projectileManager
             });
         } catch (e) {
             console.error("Failed to load shooterpowerup.glb", e);
-            // Fallback to visible sphere
+            //fallback to visible sphere
             mesh.isVisible = true;
             const mat = new BABYLON.StandardMaterial('rocketShooterMat', scene);
             mat.emissiveColor = new BABYLON.Color3(1, 0, 0);

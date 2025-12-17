@@ -23,8 +23,9 @@ export const createUFO = async (scene, projectileManager, backgroundMusic) => {
     let isFlying = false;
     let flyingObserver = null;
     let alienLaughSound = null;
+    let bossLaughSound = null;
 
-    // Load alien laugh sound
+    //load alien laugh sound
     try {
         alienLaughSound = await BABYLON.CreateSoundAsync("alienLaugh", "assets/sounds/alien-laugh.mp3", {
             loop: false,
@@ -35,7 +36,18 @@ export const createUFO = async (scene, projectileManager, backgroundMusic) => {
         console.error("Failed to load alien laugh sound:", e);
     }
 
-    // Variabelen voor Boss state
+    //load boss laugh sound
+    try {
+        bossLaughSound = await BABYLON.CreateSoundAsync("bossLaugh", "assets/sounds/boss-laugh.mp3", {
+            loop: false,
+            autoplay: false,
+            volume: 2.0
+        });
+    } catch (e) {
+        console.error("Failed to load boss laugh sound:", e);
+    }
+
+    //variabelen voor Boss state
     let bossHealth = 3;
     let bossHealthUI = null;
 
@@ -111,7 +123,7 @@ export const createUFO = async (scene, projectileManager, backgroundMusic) => {
                     scene
                 );
 
-                // Forceer kinematic type
+                //forceer kinematic type
                 if (ufoRoot.physicsImpostor.physicsBody) {
                     ufoRoot.physicsImpostor.physicsBody.type = 4; // Kinematic
                     ufoRoot.physicsImpostor.physicsBody.updateMassProperties();
@@ -158,8 +170,7 @@ export const createUFO = async (scene, projectileManager, backgroundMusic) => {
         }
     };
 
-    // --- NIEUWE STOP FUNCTIE ---
-    // Stopt de update loop, maar laat de UFO staan (bevroren)
+    //stopt de update loop, maar laat de UFO staan (bevroren)
     const stop = () => {
         if (flyingObserver) {
             scene.onBeforeRenderObservable.remove(flyingObserver);
@@ -168,6 +179,10 @@ export const createUFO = async (scene, projectileManager, backgroundMusic) => {
 
         if (alienLaughSound && alienLaughSound.isPlaying) {
             alienLaughSound.stop();
+        }
+
+        if (bossLaughSound && bossLaughSound.isPlaying) {
+            bossLaughSound.stop();
         }
 
         if (currentActiveUfo && currentActiveUfo._collisionObserver) {
@@ -182,7 +197,7 @@ export const createUFO = async (scene, projectileManager, backgroundMusic) => {
 
         isFlying = false;
 
-        // Zorg dat hij fysiek stilstaat
+        //zorg dat hij fysiek stilstaat
         if (currentActiveUfo && currentActiveUfo.root.physicsImpostor) {
             currentActiveUfo.root.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
             currentActiveUfo.root.physicsImpostor.setAngularVelocity(BABYLON.Vector3.Zero());
@@ -190,13 +205,16 @@ export const createUFO = async (scene, projectileManager, backgroundMusic) => {
     };
 
     const reset = () => {
-        stop(); // Gebruik stop om eerst alles netjes te killen
+        stop(); //gebruik stop om eerst alles netjes te killen
 
         if (alienLaughSound) {
             alienLaughSound.stop();
         }
+        if (bossLaughSound) {
+            bossLaughSound.stop();
+        }
 
-        // Reset modellen
+        //reset modellen
         ufoAssets.forEach((asset) => {
             asset.root.setEnabled(false);
             asset.root.position.copyFrom(UFO_CONFIG.startPosition);
@@ -204,7 +222,7 @@ export const createUFO = async (scene, projectileManager, backgroundMusic) => {
                 asset.root.physicsImpostor.sleep();
                 const body = asset.root.physicsImpostor.physicsBody;
                 if (body) {
-                    body.collisionFilterMask = 0; // Bots nergens mee
+                    body.collisionFilterMask = 0; //bots nergens mee
                     body.velocity.set(0, 0, 0);
                 }
             }
@@ -355,7 +373,7 @@ export const createUFO = async (scene, projectileManager, backgroundMusic) => {
             const dt = scene.getEngine().getDeltaTime();
             rotationTime += dt;
 
-            // Wobble
+            //wobble
             const sineWave = Math.sin(rotationTime * UFO_CONFIG.rotationSpeed);
             const rotationProgress = smoothStep((sineWave + 1) / 2);
             const rotationAngle = BABYLON.Scalar.Lerp(UFO_CONFIG.rotation.min, UFO_CONFIG.rotation.max, rotationProgress);
@@ -374,14 +392,19 @@ export const createUFO = async (scene, projectileManager, backgroundMusic) => {
                 targetPos = path[0];
                 duration = config.enterDuration;
 
-                // Play laugh sound once with delay
-                if (timeAtPoint === 0 && alienLaughSound) {
+                //play laugh sound once with delay
+                if (timeAtPoint === 0) {
                     setTimeout(() => {
                         if (isFlying && phase === 'entering') {
                             if (scene.getEngine().getAudioContext()?.state === 'suspended') {
                                 scene.getEngine().getAudioContext().resume();
                             }
-                            alienLaughSound.play();
+                            
+                            if (isBoss && bossLaughSound) {
+                                bossLaughSound.play();
+                            } else if (!isBoss && alienLaughSound) {
+                                alienLaughSound.play();
+                            }
                         }
                     }, 1000);
                 }
@@ -417,7 +440,7 @@ export const createUFO = async (scene, projectileManager, backgroundMusic) => {
                     currentPointIndex = 1;
                 }
                 else if (phase === 'flying') {
-                    // Boss shoots always (infinite ammo, no dead zones), regular UFOs respect limits
+                    //boss shoots always (infinite ammo, no dead zones), regular UFOs respect limits
                     const shouldShoot = isBoss || (shotsFired < config.totalShots && currentPointIndex <= config.pathPoints - 2);
 
                     if (shouldShoot) {
@@ -447,7 +470,7 @@ export const createUFO = async (scene, projectileManager, backgroundMusic) => {
         flyUFO,
         setModel,
         reset,
-        stop, // Exporteer stop
+        stop,
         isFlying: () => isFlying
     };
 };
